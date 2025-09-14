@@ -42,26 +42,32 @@ class SupabaseBulkClient {
       const pgPassword = process.env.SUPABASE_DB_PASSWORD || process.env.DATABASE_PASSWORD;
       
       if (pgPassword) {
-        // Use direct database connection instead of pooler
-        const pgHost = `db.${projectRef}.supabase.co`;
-        const pgPort = 5432;
+        // Use pooler connection for Railway to avoid IPv6 issues
+        const pgHost = process.env.RAILWAY_ENVIRONMENT
+          ? `aws-0-us-west-1.pooler.supabase.com`  // Use pooler for Railway
+          : `db.${projectRef}.supabase.co`;         // Direct for local
+        const pgPort = process.env.RAILWAY_ENVIRONMENT ? 6543 : 5432;
+        const pgDatabase = process.env.RAILWAY_ENVIRONMENT ? 'postgres' : 'postgres';
+        const pgUser = process.env.RAILWAY_ENVIRONMENT ? `postgres.${projectRef}` : 'postgres';
         
-        console.log(`🔧 Setting up PostgreSQL connection via direct connection`);
-        console.log(`🌐 Using direct connection: ${pgHost}:${pgPort}`);
-        console.log(`👤 User: postgres`);
-        
+        console.log(`🔧 Setting up PostgreSQL connection via ${process.env.RAILWAY_ENVIRONMENT ? 'pooler' : 'direct connection'}`);
+        console.log(`🌐 Using connection: ${pgHost}:${pgPort}`);
+        console.log(`👤 User: ${pgUser}`);
+
         // Disable TLS rejection for Railway environment
         if (process.env.RAILWAY_ENVIRONMENT) {
           process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
         }
-        
+
         this.pgPool = new Pool({
           host: pgHost,
           port: pgPort,
-          database: 'postgres',
-          user: 'postgres',
+          database: pgDatabase,
+          user: pgUser,
           password: pgPassword,
-          ssl: {
+          ssl: process.env.RAILWAY_ENVIRONMENT ? {
+            rejectUnauthorized: false
+          } : {
             rejectUnauthorized: false,
             checkServerIdentity: () => undefined,
             ca: false
@@ -70,9 +76,7 @@ class SupabaseBulkClient {
           min: 0,
           idleTimeoutMillis: 30000,
           connectionTimeoutMillis: 30000,
-          allowExitOnIdle: true,
-          // Force IPv4 to avoid IPv6 connectivity issues on Railway
-          family: 4
+          allowExitOnIdle: true
         });
         
         console.log(`✅ PostgreSQL connection configured for db.${projectRef}.supabase.co`);
