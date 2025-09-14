@@ -44,8 +44,8 @@ class SupabaseBulkClient {
       if (pgPassword) {
         // Use pooler connection for Railway to avoid IPv6 issues
         const pgHost = process.env.RAILWAY_ENVIRONMENT
-          ? `aws-0-us-west-1.pooler.supabase.com`  // Use pooler for Railway
-          : `db.${projectRef}.supabase.co`;         // Direct for local
+          ? `aws-1-eu-central-1.pooler.supabase.com`  // Use pooler for Railway (EU Central)
+          : `db.${projectRef}.supabase.co`;           // Direct for local
         const pgPort = process.env.RAILWAY_ENVIRONMENT ? 6543 : 5432;
         const pgDatabase = process.env.RAILWAY_ENVIRONMENT ? 'postgres' : 'postgres';
         const pgUser = process.env.RAILWAY_ENVIRONMENT ? `postgres.${projectRef}` : 'postgres';
