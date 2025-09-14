@@ -6,10 +6,23 @@ const { BULK_EXPORT_TABLES, EXPORT_CONFIG } = require('../config/tables');
 
 class BulkReplicator {
   constructor() {
-    // Initialize Zoho client with credential server
-    this.zohoClient = new ZohoBulkClient({
-      credentialServerURL: process.env.CREDENTIAL_SERVER_URL || 'http://localhost:3002'
-    });
+    // Initialize Zoho client with direct credentials or credential server
+    const zohoConfig = {};
+
+    // Check if direct credentials are available
+    if (process.env.ZOHO_CLIENT_ID && process.env.ZOHO_CLIENT_SECRET) {
+      zohoConfig.clientId = process.env.ZOHO_CLIENT_ID;
+      zohoConfig.clientSecret = process.env.ZOHO_CLIENT_SECRET;
+      zohoConfig.refreshToken = process.env.ZOHO_REFRESH_TOKEN;
+      zohoConfig.orgId = process.env.ZOHO_ORG_ID;
+      zohoConfig.workspaceId = process.env.ZOHO_WORKSPACE_ID;
+      console.log('🔧 Using direct Zoho credentials from environment variables');
+    } else {
+      zohoConfig.credentialServerURL = process.env.CREDENTIAL_SERVER_URL || 'http://localhost:3002';
+      console.log('🔧 Using credential server for Zoho authentication');
+    }
+
+    this.zohoClient = new ZohoBulkClient(zohoConfig);
 
     // Initialize Supabase client
     this.supabaseClient = new SupabaseBulkClient({
@@ -20,33 +33,50 @@ class BulkReplicator {
   }
 
   async validateConfiguration() {
-    const requiredVars = [
+    // Check required Supabase environment variables
+    const requiredSupabaseVars = [
       'SUPABASE_URL',
       'SUPABASE_ANON_KEY',
       'SUPABASE_SERVICE_ROLE_KEY'
     ];
 
-    const missing = requiredVars.filter(varName => !process.env[varName]);
+    const missingSupabase = requiredSupabaseVars.filter(varName => !process.env[varName]);
 
-    if (missing.length > 0) {
-      throw new Error(`Missing required environment variables: ${missing.join(', ')}`);
+    if (missingSupabase.length > 0) {
+      throw new Error(`Missing required Supabase environment variables: ${missingSupabase.join(', ')}`);
     }
 
-    // Validate credential server connection
-    try {
-      const credentialServerURL = process.env.CREDENTIAL_SERVER_URL || 'http://localhost:3002';
-      console.log(`🔍 Checking credential server at ${credentialServerURL}...`);
+    // Check Zoho credentials - either direct or credential server
+    const hasDirectCredentials = process.env.ZOHO_CLIENT_ID && process.env.ZOHO_CLIENT_SECRET;
+    const useCredentialServer = !hasDirectCredentials;
 
-      const axios = require('axios');
-      const response = await axios.get(`${credentialServerURL}/health`, { timeout: 5000 });
+    if (hasDirectCredentials) {
+      console.log('✅ Using direct Zoho credentials');
+      const requiredZohoVars = ['ZOHO_CLIENT_ID', 'ZOHO_CLIENT_SECRET', 'ZOHO_REFRESH_TOKEN', 'ZOHO_ORG_ID', 'ZOHO_WORKSPACE_ID'];
+      const missingZoho = requiredZohoVars.filter(varName => !process.env[varName]);
 
-      if (response.data.status === 'healthy') {
-        console.log('✅ Credential server is running');
-      } else {
-        throw new Error('Credential server is not healthy');
+      if (missingZoho.length > 0) {
+        throw new Error(`Missing required Zoho environment variables: ${missingZoho.join(', ')}`);
       }
-    } catch (error) {
-      throw new Error(`Credential server is not accessible: ${error.message}. Please start it with 'npm run credential-server'`);
+    } else if (useCredentialServer && !process.env.DISABLE_CREDENTIAL_SERVER) {
+      // Only validate credential server if not disabled and no direct credentials
+      try {
+        const credentialServerURL = process.env.CREDENTIAL_SERVER_URL || 'http://localhost:3002';
+        console.log(`🔍 Checking credential server at ${credentialServerURL}...`);
+
+        const axios = require('axios');
+        const response = await axios.get(`${credentialServerURL}/health`, { timeout: 5000 });
+
+        if (response.data.status === 'healthy') {
+          console.log('✅ Credential server is running');
+        } else {
+          throw new Error('Credential server is not healthy');
+        }
+      } catch (error) {
+        throw new Error(`Credential server is not accessible: ${error.message}. Please start it with 'npm run credential-server'`);
+      }
+    } else {
+      console.log('⚠️  Credential server validation disabled');
     }
 
     console.log('✅ Configuration validated');
