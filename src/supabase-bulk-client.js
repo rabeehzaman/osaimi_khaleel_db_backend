@@ -61,7 +61,7 @@ class SupabaseBulkClient {
           database: 'postgres',
           user: 'postgres',
           password: pgPassword,
-          ssl: { 
+          ssl: {
             rejectUnauthorized: false,
             checkServerIdentity: () => undefined,
             ca: false
@@ -70,7 +70,9 @@ class SupabaseBulkClient {
           min: 0,
           idleTimeoutMillis: 30000,
           connectionTimeoutMillis: 30000,
-          allowExitOnIdle: true
+          allowExitOnIdle: true,
+          // Force IPv4 to avoid IPv6 connectivity issues on Railway
+          family: 4
         });
         
         console.log(`✅ PostgreSQL connection configured for db.${projectRef}.supabase.co`);
