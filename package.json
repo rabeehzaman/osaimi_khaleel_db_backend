@@ -1,0 +1,40 @@
+{
+  "name": "zoho-bulk-replication",
+  "version": "1.0.0",
+  "description": "Zoho Analytics Bulk API data replication to Supabase",
+  "main": "src/server.js",
+  "scripts": {
+    "start": "node src/server.js",
+    "dev": "nodemon src/server.js",
+    "credential-server": "node src/zoho-credential-server.js",
+    "dev-credential-server": "nodemon src/zoho-credential-server.js",
+    "start-all": "npm run credential-server & npm start",
+    "dev-all": "npm run dev-credential-server & npm run dev",
+    "replicate": "node src/bulk-replicator.js",
+    "scheduler": "node src/bulk-replicator.js --scheduler",
+    "test": "node src/bulk-replicator.js --test"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.39.0",
+    "axios": "^1.6.0",
+    "cors": "^2.8.5",
+    "csv-parser": "^3.0.0",
+    "dotenv": "^16.3.1",
+    "express": "^4.18.2",
+    "node-cron": "^3.0.3",
+    "pg": "^8.16.3",
+    "pg-copy-streams": "^7.0.0"
+  },
+  "devDependencies": {
+    "nodemon": "^3.0.2"
+  },
+  "keywords": [
+    "zoho",
+    "analytics",
+    "bulk-api",
+    "supabase",
+    "data-replication"
+  ],
+  "author": "TMR",
+  "license": "MIT"
+}
