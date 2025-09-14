@@ -13,8 +13,10 @@ class ZohoBulkClient {
     this.refreshToken = config.refreshToken;
     this.orgId = config.orgId;
     this.workspaceId = config.workspaceId;
-    this.baseURL = 'https://analyticsapi.zoho.sa/restapi/v2';
-    this.tokenURL = 'https://accounts.zoho.sa/oauth/v2/token';
+    // Set the region-based URLs
+    const region = config.region || process.env.ZOHO_REGION || 'com';
+    this.baseURL = `https://analyticsapi.zoho.${region}/restapi/v2`;
+    this.tokenURL = `https://accounts.zoho.${region}/oauth/v2/token`;
 
     // Use credential server by default if available
     this.useCredentialServer = !config.clientId; // Use server if no direct credentials provided

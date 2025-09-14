@@ -16,7 +16,8 @@ class BulkReplicator {
       zohoConfig.refreshToken = process.env.ZOHO_REFRESH_TOKEN;
       zohoConfig.orgId = process.env.ZOHO_ORG_ID;
       zohoConfig.workspaceId = process.env.ZOHO_WORKSPACE_ID;
-      console.log('🔧 Using direct Zoho credentials from environment variables');
+      zohoConfig.region = process.env.ZOHO_REGION;
+      console.log('✅ Using direct Zoho credentials');
     } else {
       zohoConfig.credentialServerURL = process.env.CREDENTIAL_SERVER_URL || 'http://localhost:3002';
       console.log('🔧 Using credential server for Zoho authentication');
