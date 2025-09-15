@@ -293,6 +293,48 @@ app.get('/debug/zoho-config', (req, res) => {
   });
 });
 
+// Debug endpoint to test token refresh
+app.get('/debug/test-token', async (req, res) => {
+  if (!replicator) {
+    return res.status(500).json({
+      success: false,
+      error: 'Replicator not initialized'
+    });
+  }
+
+  try {
+    const zohoClient = replicator.zohoClient;
+    console.log('🧪 Testing token refresh manually...');
+
+    const beforeState = {
+      hasAccessToken: !!zohoClient.tokens?.access_token,
+      tokenExpiry: zohoClient.tokens?.expires_at
+    };
+
+    await zohoClient.ensureValidToken();
+
+    const afterState = {
+      hasAccessToken: !!zohoClient.tokens?.access_token,
+      tokenExpiry: zohoClient.tokens?.expires_at
+    };
+
+    res.json({
+      success: true,
+      beforeState,
+      afterState,
+      tokenWasRefreshed: afterState.hasAccessToken && !beforeState.hasAccessToken,
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      error: error.message,
+      stack: error.stack,
+      timestamp: new Date().toISOString()
+    });
+  }
+});
+
 // Get replication status (simple health check)
 app.get('/status', (req, res) => {
   const status = {
