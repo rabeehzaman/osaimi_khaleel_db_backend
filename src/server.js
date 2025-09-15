@@ -185,6 +185,58 @@ app.post('/replicate/tables', async (req, res) => {
   }
 });
 
+// Proxy requests to Zoho Analytics API
+app.all('/api/proxy/*', async (req, res) => {
+  try {
+    console.log(`🔄 Proxying ${req.method} request to Zoho Analytics API...`);
+
+    // Extract the path after /api/proxy/
+    const apiPath = req.path.replace('/api/proxy/', '');
+
+    // Get Zoho credentials and endpoints
+    const region = process.env.ZOHO_REGION || 'com';
+    const baseURL = `https://analyticsapi.zoho.${region}/restapi/v2`;
+    const fullUrl = `${baseURL}/${apiPath}`;
+
+    console.log(`📡 Forwarding to: ${fullUrl}`);
+
+    // Get access token using the same method as ZohoBulkClient
+    const zohoClient = replicator.zohoClient;
+    await zohoClient.ensureValidToken();
+
+    const config = {
+      method: req.method.toLowerCase(),
+      url: fullUrl,
+      headers: {
+        'Authorization': `Zoho-oauthtoken ${zohoClient.tokens.access_token}`,
+        'ZANALYTICS-ORGID': zohoClient.orgId,
+        'Accept': req.headers.accept || 'application/json'
+      },
+      params: req.query,
+      timeout: 300000,
+      maxContentLength: Infinity,
+      maxBodyLength: Infinity
+    };
+
+    if (req.method !== 'GET' && req.body) {
+      config.data = req.body;
+    }
+
+    const axios = require('axios');
+    const response = await axios(config);
+
+    console.log(`✅ Proxy request successful: ${response.status}`);
+    res.status(response.status).json(response.data);
+  } catch (error) {
+    console.error('❌ Proxy request failed:', error.response?.data || error.message);
+    res.status(error.response?.status || 500).json({
+      error: error.response?.data || error.message,
+      proxyError: true,
+      timestamp: new Date().toISOString()
+    });
+  }
+});
+
 // Discover all available views in Zoho workspace
 app.get('/discover-views', async (req, res) => {
   if (!replicator) {
@@ -197,7 +249,7 @@ app.get('/discover-views', async (req, res) => {
   try {
     console.log('🔍 Discovering all available views in Zoho workspace...');
     const views = await replicator.discoverViews();
-    
+
     res.json({
       success: true,
       totalViews: views.length,
