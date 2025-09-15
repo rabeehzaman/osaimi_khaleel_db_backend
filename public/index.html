@@ -266,6 +266,56 @@
         .hidden {
             display: none;
         }
+
+        .delete-btn {
+            background: linear-gradient(135deg, #ff6b6b 0%, #ee5a52 100%);
+            color: white;
+            border: none;
+            padding: 6px 12px;
+            border-radius: 4px;
+            font-size: 0.8rem;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .delete-btn:hover {
+            background: linear-gradient(135deg, #ff5252 0%, #d32f2f 100%);
+            transform: scale(1.05);
+        }
+
+        .delete-btn:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .table-management {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+        }
+
+        .management-controls {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 15px;
+            flex-wrap: wrap;
+        }
+
+        .table-row-with-actions {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .table-actions {
+            display: flex;
+            gap: 5px;
+        }
     </style>
 </head>
 <body>
@@ -386,15 +436,40 @@
             <!-- Tables Information -->
             <div class="section">
                 <h2>📋 Configured Tables</h2>
+
+                <!-- Table Management Controls -->
+                <div class="table-management">
+                    <h3>🗑️ Table Management</h3>
+                    <p>Select tables to remove from replication configuration:</p>
+
+                    <div class="management-controls">
+                        <button class="btn secondary" onclick="toggleTableSelection()" id="toggleSelectionBtn">
+                            <span>☑️</span>
+                            <span>Select Tables</span>
+                        </button>
+                        <button class="btn" onclick="removeSelectedTables()" id="removeSelectedBtn" style="display: none;">
+                            <span>🗑️</span>
+                            <span>Remove Selected</span>
+                            <span class="loading hidden" id="removeLoading"></span>
+                        </button>
+                        <button class="btn success" onclick="cancelTableSelection()" id="cancelSelectionBtn" style="display: none;">
+                            <span>❌</span>
+                            <span>Cancel</span>
+                        </button>
+                    </div>
+                </div>
+
                 <div class="tables-section">
                     <table class="table" id="tablesTable">
                         <thead>
                             <tr>
+                                <th id="selectHeader" style="display: none;">Select</th>
                                 <th>Table Name</th>
                                 <th>Description</th>
                                 <th>Estimated Rows</th>
                                 <th>Priority</th>
                                 <th>View ID</th>
+                                <th>Actions</th>
                             </tr>
                         </thead>
                         <tbody id="tablesBody">
@@ -476,15 +551,24 @@
         function populateTablesTable(tables) {
             const tbody = document.getElementById('tablesBody');
             tbody.innerHTML = '';
-            
+
             tables.forEach(table => {
                 const row = document.createElement('tr');
                 row.innerHTML = `
+                    <td class="select-cell" style="display: none;">
+                        <input type="checkbox" value="${table.viewId}" class="table-select-checkbox">
+                    </td>
                     <td><strong>${table.tableName}</strong></td>
                     <td>${table.description}</td>
                     <td>${table.estimatedRows.toLocaleString()}</td>
                     <td><span class="priority ${table.priority}">${table.priority.toUpperCase()}</span></td>
                     <td><code>${table.viewId}</code></td>
+                    <td class="table-actions">
+                        <button class="delete-btn" onclick="removeTable('${table.viewId}', '${table.tableName}')" ${tables.length <= 1 ? 'disabled title="Cannot remove the last table"' : ''}>
+                            <span>🗑️</span>
+                            <span>Remove</span>
+                        </button>
+                    </td>
                 `;
                 tbody.appendChild(row);
             });
@@ -713,6 +797,128 @@
                 }
             } catch (error) {
                 addLog(`Configuration error: ${error.message}`, 'error');
+            } finally {
+                btn.disabled = false;
+                loading.classList.add('hidden');
+            }
+        }
+
+        // Table Management Functions
+        let selectionMode = false;
+
+        function toggleTableSelection() {
+            selectionMode = !selectionMode;
+
+            const selectHeader = document.getElementById('selectHeader');
+            const selectCells = document.querySelectorAll('.select-cell');
+            const toggleBtn = document.getElementById('toggleSelectionBtn');
+            const removeBtn = document.getElementById('removeSelectedBtn');
+            const cancelBtn = document.getElementById('cancelSelectionBtn');
+
+            if (selectionMode) {
+                // Enter selection mode
+                selectHeader.style.display = '';
+                selectCells.forEach(cell => cell.style.display = '');
+                toggleBtn.style.display = 'none';
+                removeBtn.style.display = '';
+                cancelBtn.style.display = '';
+
+                addLog('Selection mode enabled. Select tables to remove.', 'info');
+            } else {
+                // Exit selection mode
+                selectHeader.style.display = 'none';
+                selectCells.forEach(cell => cell.style.display = 'none');
+                toggleBtn.style.display = '';
+                removeBtn.style.display = 'none';
+                cancelBtn.style.display = 'none';
+
+                // Clear all selections
+                document.querySelectorAll('.table-select-checkbox').forEach(cb => cb.checked = false);
+
+                addLog('Selection mode disabled.', 'info');
+            }
+        }
+
+        function cancelTableSelection() {
+            toggleTableSelection();
+        }
+
+        async function removeTable(viewId, tableName) {
+            if (!confirm(`Are you sure you want to remove "${tableName}" from the replication configuration?\n\nThis will stop replicating this table but will not delete existing data in Supabase.`)) {
+                return;
+            }
+
+            addLog(`🗑️ Removing ${tableName} from configuration...`, 'info');
+
+            try {
+                const response = await fetch(`/api/configure-tables/${viewId}`, {
+                    method: 'DELETE'
+                });
+                const result = await response.json();
+
+                if (result.success) {
+                    addLog(`✅ Successfully removed ${tableName} from configuration`, 'success');
+
+                    // Refresh the data
+                    await loadTables();
+                    refreshStatus();
+                } else {
+                    addLog(`❌ Failed to remove ${tableName}: ${result.error}`, 'error');
+                }
+            } catch (error) {
+                addLog(`Error removing ${tableName}: ${error.message}`, 'error');
+            }
+        }
+
+        async function removeSelectedTables() {
+            const checkboxes = document.querySelectorAll('.table-select-checkbox:checked');
+            const selectedViewIds = Array.from(checkboxes).map(cb => cb.value);
+
+            if (selectedViewIds.length === 0) {
+                alert('Please select at least one table to remove.');
+                return;
+            }
+
+            const tableNames = Array.from(checkboxes).map(cb => {
+                const row = cb.closest('tr');
+                return row.querySelector('strong').textContent;
+            });
+
+            if (!confirm(`Are you sure you want to remove ${selectedViewIds.length} selected tables from the replication configuration?\n\nTables to remove: ${tableNames.join(', ')}\n\nThis will stop replicating these tables but will not delete existing data in Supabase.`)) {
+                return;
+            }
+
+            const btn = document.getElementById('removeSelectedBtn');
+            const loading = document.getElementById('removeLoading');
+
+            btn.disabled = true;
+            loading.classList.remove('hidden');
+            addLog(`🗑️ Removing ${selectedViewIds.length} selected tables...`, 'info');
+
+            try {
+                const response = await fetch('/api/remove-tables', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ viewIds: selectedViewIds })
+                });
+                const result = await response.json();
+
+                if (result.success) {
+                    addLog(`✅ Successfully removed ${result.removedTables.length} tables from configuration`, 'success');
+
+                    if (result.notFoundTables.length > 0) {
+                        addLog(`ℹ️ ${result.notFoundTables.length} tables were not found (may have been already removed)`, 'info');
+                    }
+
+                    // Exit selection mode and refresh
+                    toggleTableSelection();
+                    await loadTables();
+                    refreshStatus();
+                } else {
+                    addLog(`❌ Failed to remove tables: ${result.error}`, 'error');
+                }
+            } catch (error) {
+                addLog(`Error removing tables: ${error.message}`, 'error');
             } finally {
                 btn.disabled = false;
                 loading.classList.add('hidden');

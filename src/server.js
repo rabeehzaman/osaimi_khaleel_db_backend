@@ -356,6 +356,136 @@ app.post('/api/configure-tables', async (req, res) => {
   }
 });
 
+// Remove tables from replication configuration
+app.delete('/api/configure-tables/:viewId', async (req, res) => {
+  try {
+    const { viewId } = req.params;
+
+    if (!viewId) {
+      return res.status(400).json({
+        success: false,
+        error: 'View ID is required'
+      });
+    }
+
+    // Find the table to remove
+    const tableIndex = runtimeTableConfig.findIndex(table => table.viewId === viewId);
+    const bulkTableIndex = BULK_EXPORT_TABLES.findIndex(table => table.viewId === viewId);
+
+    if (tableIndex === -1) {
+      return res.status(404).json({
+        success: false,
+        error: 'Table not found in configuration'
+      });
+    }
+
+    // Don't allow removal of the last table
+    if (runtimeTableConfig.length <= 1) {
+      return res.status(400).json({
+        success: false,
+        error: 'Cannot remove the last configured table. At least one table must remain configured.'
+      });
+    }
+
+    const removedTable = runtimeTableConfig[tableIndex];
+
+    // Remove from both configurations
+    runtimeTableConfig.splice(tableIndex, 1);
+    if (bulkTableIndex !== -1) {
+      BULK_EXPORT_TABLES.splice(bulkTableIndex, 1);
+    }
+
+    console.log(`✅ Table removed from configuration: ${removedTable.tableName}`);
+
+    res.json({
+      success: true,
+      message: `Successfully removed ${removedTable.tableName} from configuration`,
+      removedTable: {
+        tableName: removedTable.tableName,
+        viewId: removedTable.viewId,
+        description: removedTable.description
+      },
+      totalConfigured: runtimeTableConfig.length,
+      timestamp: new Date().toISOString()
+    });
+
+  } catch (error) {
+    console.error('❌ Failed to remove table:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message,
+      timestamp: new Date().toISOString()
+    });
+  }
+});
+
+// Bulk remove multiple tables
+app.post('/api/remove-tables', async (req, res) => {
+  try {
+    const { viewIds } = req.body;
+
+    if (!viewIds || !Array.isArray(viewIds) || viewIds.length === 0) {
+      return res.status(400).json({
+        success: false,
+        error: 'Please provide an array of view IDs to remove'
+      });
+    }
+
+    // Don't allow removing all tables
+    if (viewIds.length >= runtimeTableConfig.length) {
+      return res.status(400).json({
+        success: false,
+        error: 'Cannot remove all tables. At least one table must remain configured.'
+      });
+    }
+
+    const removedTables = [];
+    const notFoundTables = [];
+
+    // Process each viewId
+    for (const viewId of viewIds) {
+      const tableIndex = runtimeTableConfig.findIndex(table => table.viewId === viewId);
+      const bulkTableIndex = BULK_EXPORT_TABLES.findIndex(table => table.viewId === viewId);
+
+      if (tableIndex !== -1) {
+        const removedTable = runtimeTableConfig[tableIndex];
+        removedTables.push({
+          tableName: removedTable.tableName,
+          viewId: removedTable.viewId,
+          description: removedTable.description
+        });
+
+        // Remove from both configurations
+        runtimeTableConfig.splice(tableIndex, 1);
+        if (bulkTableIndex !== -1) {
+          BULK_EXPORT_TABLES.splice(bulkTableIndex, 1);
+        }
+      } else {
+        notFoundTables.push(viewId);
+      }
+    }
+
+    console.log(`✅ Removed ${removedTables.length} tables from configuration`);
+
+    res.json({
+      success: true,
+      message: `Successfully removed ${removedTables.length} tables from configuration`,
+      removedTables,
+      notFoundTables,
+      totalConfigured: runtimeTableConfig.length,
+      timestamp: new Date().toISOString()
+    });
+
+  } catch (error) {
+    console.error('❌ Failed to remove tables:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message,
+      timestamp: new Date().toISOString()
+    });
+  }
+});
+
 // Debug endpoint to check Zoho client configuration
 app.get('/debug/zoho-config', (req, res) => {
   if (!replicator) {
