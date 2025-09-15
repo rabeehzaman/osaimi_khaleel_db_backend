@@ -265,6 +265,34 @@ app.get('/discover-views', async (req, res) => {
   }
 });
 
+// Debug endpoint to check Zoho client configuration
+app.get('/debug/zoho-config', (req, res) => {
+  if (!replicator) {
+    return res.status(500).json({
+      success: false,
+      error: 'Replicator not initialized'
+    });
+  }
+
+  const zohoClient = replicator.zohoClient;
+  res.json({
+    success: true,
+    config: {
+      useCredentialServer: zohoClient.useCredentialServer,
+      hasClientId: !!zohoClient.clientId,
+      hasClientSecret: !!zohoClient.clientSecret,
+      hasRefreshToken: !!zohoClient.refreshToken,
+      orgId: zohoClient.orgId,
+      workspaceId: zohoClient.workspaceId,
+      region: zohoClient.baseURL?.includes('.com') ? 'com' : 'other',
+      credentialServerURL: zohoClient.credentialServerURL,
+      hasAccessToken: !!zohoClient.tokens?.access_token,
+      tokenExpiry: zohoClient.tokens?.expires_at
+    },
+    timestamp: new Date().toISOString()
+  });
+});
+
 // Get replication status (simple health check)
 app.get('/status', (req, res) => {
   const status = {
