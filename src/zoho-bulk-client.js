@@ -238,7 +238,7 @@ class ZohoBulkClient {
           console.log('🔍 Raw Zoho API response via proxy:', JSON.stringify(response.data, null, 2));
           return {
             success: true,
-            views: response.data.views || []
+            views: response.data.data?.views || response.data.views || []
           };
         } else {
           throw new Error(`HTTP ${response.status}: ${response.statusText}`);
@@ -260,7 +260,7 @@ class ZohoBulkClient {
           console.log('🔍 Raw Zoho API response:', JSON.stringify(response.data, null, 2));
           return {
             success: true,
-            views: response.data.views || []
+            views: response.data.data?.views || response.data.views || []
           };
         } else {
           throw new Error(`HTTP ${response.status}: ${response.statusText}`);
