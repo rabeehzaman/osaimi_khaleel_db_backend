@@ -5,6 +5,9 @@ const path = require('path');
 const BulkReplicator = require('./bulk-replicator');
 const { BULK_EXPORT_TABLES } = require('../config/tables');
 
+// Runtime table configuration (starts with config file, can be updated)
+let runtimeTableConfig = [...BULK_EXPORT_TABLES];
+
 const app = express();
 const PORT = process.env.PORT || 3001;
 
@@ -46,8 +49,8 @@ app.get('/', (req, res) => {
 app.get('/tables', (req, res) => {
   res.json({
     success: true,
-    total: BULK_EXPORT_TABLES.length,
-    tables: BULK_EXPORT_TABLES.map(table => ({
+    total: runtimeTableConfig.length,
+    tables: runtimeTableConfig.map(table => ({
       tableName: table.tableName,
       viewId: table.viewId,
       description: table.description,
@@ -311,14 +314,8 @@ app.post('/api/configure-tables', async (req, res) => {
 
     console.log(`📝 Configuring ${selectedTables.length} tables for replication...`);
 
-    // Read current configuration
-    const fs = require('fs');
-    const path = require('path');
-    const configPath = path.join(__dirname, '../config/tables.js');
-
-    // Get currently configured tables
-    const { BULK_EXPORT_TABLES } = require('../config/tables');
-    const currentViewIds = BULK_EXPORT_TABLES.map(table => table.viewId);
+    // Get currently configured tables from runtime config
+    const currentViewIds = runtimeTableConfig.map(table => table.viewId);
 
     // Filter out tables that are already configured
     const newTables = selectedTables.filter(table => !currentViewIds.includes(table.viewId));
@@ -332,49 +329,23 @@ app.post('/api/configure-tables', async (req, res) => {
       });
     }
 
-    // Add new tables to the configuration
-    const updatedTables = [...BULK_EXPORT_TABLES, ...newTables];
+    // Add new tables to the runtime configuration
+    runtimeTableConfig.push(...newTables);
 
-    // Generate new configuration file content
-    const configContent = `// Zoho Analytics table configurations for bulk export
-const BULK_EXPORT_TABLES = [
-${updatedTables.map(table => `  {
-    viewId: '${table.viewId}',
-    tableName: '${table.tableName}',
-    description: '${table.description || table.tableName}',
-    estimatedRows: ${table.estimatedRows || 1000},
-    priority: '${table.priority || 'medium'}'
-  }`).join(',\n')}
-];
-
-// Export configuration
-const EXPORT_CONFIG = {
-  defaultFormat: 'csv',
-  maxRetries: 3,
-  retryDelay: 5000,
-  batchSize: 1,
-  timeout: 300000
-};
-
-module.exports = {
-  BULK_EXPORT_TABLES,
-  EXPORT_CONFIG
-};`;
-
-    // Write updated configuration
-    fs.writeFileSync(configPath, configContent);
+    // Also update the original BULK_EXPORT_TABLES array so the replicator can see the changes
+    BULK_EXPORT_TABLES.push(...newTables);
 
     res.json({
       success: true,
       message: `Successfully configured ${newTables.length} new tables`,
       addedCount: newTables.length,
       skippedCount: selectedTables.length - newTables.length,
-      totalConfigured: updatedTables.length,
+      totalConfigured: runtimeTableConfig.length,
       addedTables: newTables.map(table => table.tableName),
       timestamp: new Date().toISOString()
     });
 
-    console.log(`✅ Configuration updated: ${newTables.length} new tables added`);
+    console.log(`✅ Runtime configuration updated: ${newTables.length} new tables added`);
   } catch (error) {
     console.error('❌ Failed to configure tables:', error);
     res.status(500).json({
@@ -460,7 +431,7 @@ app.get('/status', (req, res) => {
   const status = {
     service: 'Zoho Bulk Replication',
     status: replicator ? 'ready' : 'not_initialized',
-    configuredTables: BULK_EXPORT_TABLES.length,
+    configuredTables: runtimeTableConfig.length,
     environment: {
       zohoConfigured: !!(process.env.ZOHO_CLIENT_ID && process.env.ZOHO_CLIENT_SECRET),
       supabaseConfigured: !!(process.env.SUPABASE_URL && process.env.SUPABASE_ANON_KEY)
@@ -503,7 +474,7 @@ app.use('*', (req, res) => {
 // Start server
 app.listen(PORT, '0.0.0.0', () => {
   console.log(`🚀 Zoho Bulk Replication Server running on port ${PORT}`);
-  console.log(`📊 Configured tables: ${BULK_EXPORT_TABLES.length}`);
+  console.log(`📊 Configured tables: ${runtimeTableConfig.length}`);
   console.log(`🔧 Environment: ${process.env.NODE_ENV || 'development'}`);
   console.log(`🌐 Access the service at: http://localhost:${PORT}`);
   
