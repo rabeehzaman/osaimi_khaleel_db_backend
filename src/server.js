@@ -265,6 +265,126 @@ app.get('/discover-views', async (req, res) => {
   }
 });
 
+// Discover only tables (viewType="Table") from Zoho workspace
+app.get('/discover-tables', async (req, res) => {
+  if (!replicator) {
+    return res.status(500).json({
+      success: false,
+      error: 'Replicator not initialized. Check environment configuration.'
+    });
+  }
+
+  try {
+    console.log('🔍 Discovering available tables in Zoho workspace...');
+    const allViews = await replicator.discoverViews();
+
+    // Filter to only include actual tables (not views, dashboards, etc.)
+    const tables = allViews.filter(view => view.viewType === 'Table');
+
+    res.json({
+      success: true,
+      totalTables: tables.length,
+      totalViews: allViews.length,
+      tables: tables,
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      error: error.message,
+      timestamp: new Date().toISOString()
+    });
+  }
+});
+
+// Configure selected tables for replication
+app.post('/api/configure-tables', async (req, res) => {
+  try {
+    const { selectedTables } = req.body;
+
+    if (!selectedTables || !Array.isArray(selectedTables) || selectedTables.length === 0) {
+      return res.status(400).json({
+        success: false,
+        error: 'Please provide an array of selected table configurations'
+      });
+    }
+
+    console.log(`📝 Configuring ${selectedTables.length} tables for replication...`);
+
+    // Read current configuration
+    const fs = require('fs');
+    const path = require('path');
+    const configPath = path.join(__dirname, '../config/tables.js');
+
+    // Get currently configured tables
+    const { BULK_EXPORT_TABLES } = require('../config/tables');
+    const currentViewIds = BULK_EXPORT_TABLES.map(table => table.viewId);
+
+    // Filter out tables that are already configured
+    const newTables = selectedTables.filter(table => !currentViewIds.includes(table.viewId));
+
+    if (newTables.length === 0) {
+      return res.json({
+        success: true,
+        message: 'All selected tables are already configured',
+        addedCount: 0,
+        skippedCount: selectedTables.length
+      });
+    }
+
+    // Add new tables to the configuration
+    const updatedTables = [...BULK_EXPORT_TABLES, ...newTables];
+
+    // Generate new configuration file content
+    const configContent = `// Zoho Analytics table configurations for bulk export
+const BULK_EXPORT_TABLES = [
+${updatedTables.map(table => `  {
+    viewId: '${table.viewId}',
+    tableName: '${table.tableName}',
+    description: '${table.description || table.tableName}',
+    estimatedRows: ${table.estimatedRows || 1000},
+    priority: '${table.priority || 'medium'}'
+  }`).join(',\n')}
+];
+
+// Export configuration
+const EXPORT_CONFIG = {
+  defaultFormat: 'csv',
+  maxRetries: 3,
+  retryDelay: 5000,
+  batchSize: 1,
+  timeout: 300000
+};
+
+module.exports = {
+  BULK_EXPORT_TABLES,
+  EXPORT_CONFIG
+};`;
+
+    // Write updated configuration
+    fs.writeFileSync(configPath, configContent);
+
+    res.json({
+      success: true,
+      message: `Successfully configured ${newTables.length} new tables`,
+      addedCount: newTables.length,
+      skippedCount: selectedTables.length - newTables.length,
+      totalConfigured: updatedTables.length,
+      addedTables: newTables.map(table => table.tableName),
+      timestamp: new Date().toISOString()
+    });
+
+    console.log(`✅ Configuration updated: ${newTables.length} new tables added`);
+  } catch (error) {
+    console.error('❌ Failed to configure tables:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message,
+      timestamp: new Date().toISOString()
+    });
+  }
+});
+
 // Debug endpoint to check Zoho client configuration
 app.get('/debug/zoho-config', (req, res) => {
   if (!replicator) {

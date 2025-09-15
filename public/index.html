@@ -322,11 +322,56 @@
                 </div>
             </div>
 
+            <!-- Available Zoho Tables -->
+            <div class="section">
+                <h2>📊 Available Zoho Tables</h2>
+                <div class="selective-replication">
+                    <p>Discover and select tables from your Zoho Analytics workspace:</p>
+
+                    <div class="action-buttons" style="margin-bottom: 20px;">
+                        <button class="btn success" onclick="discoverZohoTables()" id="discoverBtn">
+                            <span>🔍</span>
+                            <span>Discover Available Tables</span>
+                            <span class="loading hidden" id="discoverLoading"></span>
+                        </button>
+                    </div>
+
+                    <div id="availableTablesSection" class="hidden">
+                        <div class="status-section">
+                            <div class="status-grid">
+                                <div class="status-item">
+                                    <div class="status-value" id="totalTablesCount">0</div>
+                                    <div class="status-label">Total Available Tables</div>
+                                </div>
+                                <div class="status-item">
+                                    <div class="status-value" id="configuredTablesCount">0</div>
+                                    <div class="status-label">Already Configured</div>
+                                </div>
+                                <div class="status-item">
+                                    <div class="status-value" id="newTablesCount">0</div>
+                                    <div class="status-label">New Tables Available</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="table-selector" id="availableTableSelector">
+                            <!-- Available table checkboxes will be populated here -->
+                        </div>
+
+                        <button class="btn" onclick="addSelectedTables()" id="addTablesBtn">
+                            <span>➕</span>
+                            <span>Add Selected Tables to Configuration</span>
+                            <span class="loading hidden" id="addTablesLoading"></span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+
             <!-- Selective Replication -->
             <div class="section">
                 <h2>🎯 Selective Replication</h2>
                 <div class="selective-replication">
-                    <p>Select specific tables to replicate:</p>
+                    <p>Select configured tables to replicate:</p>
                     <div class="table-selector" id="tableSelector">
                         <!-- Table checkboxes will be populated here -->
                     </div>
@@ -372,7 +417,8 @@
     <script>
         // Global state
         let tables = [];
-        
+        let availableTables = [];
+
         // Initialize dashboard
         document.addEventListener('DOMContentLoaded', function() {
             refreshStatus();
@@ -559,6 +605,114 @@
                 }
             } catch (error) {
                 addLog(`Selective replication error: ${error.message}`, 'error');
+            } finally {
+                btn.disabled = false;
+                loading.classList.add('hidden');
+            }
+        }
+
+        // Discover available Zoho tables
+        async function discoverZohoTables() {
+            const btn = document.getElementById('discoverBtn');
+            const loading = document.getElementById('discoverLoading');
+
+            btn.disabled = true;
+            loading.classList.remove('hidden');
+            addLog('🔍 Discovering available tables from Zoho Analytics...', 'info');
+
+            try {
+                const response = await fetch('/discover-tables');
+                const result = await response.json();
+
+                if (result.success) {
+                    availableTables = result.tables;
+                    addLog(`✅ Discovered ${result.totalTables} tables from Zoho workspace`, 'success');
+                    populateAvailableTablesSection(availableTables);
+                    document.getElementById('availableTablesSection').classList.remove('hidden');
+                } else {
+                    addLog(`❌ Failed to discover tables: ${result.error}`, 'error');
+                }
+            } catch (error) {
+                addLog(`Table discovery error: ${error.message}`, 'error');
+            } finally {
+                btn.disabled = false;
+                loading.classList.add('hidden');
+            }
+        }
+
+        // Populate available tables section
+        function populateAvailableTablesSection(availableTables) {
+            const configuredViewIds = tables.map(t => t.viewId);
+            const newTables = availableTables.filter(table => !configuredViewIds.includes(table.viewId));
+
+            // Update counters
+            document.getElementById('totalTablesCount').textContent = availableTables.length;
+            document.getElementById('configuredTablesCount').textContent = availableTables.length - newTables.length;
+            document.getElementById('newTablesCount').textContent = newTables.length;
+
+            // Populate table selector
+            const selector = document.getElementById('availableTableSelector');
+            selector.innerHTML = '';
+
+            availableTables.forEach(table => {
+                const isConfigured = configuredViewIds.includes(table.viewId);
+                const checkbox = document.createElement('label');
+                checkbox.className = 'table-checkbox';
+                checkbox.style.opacity = isConfigured ? '0.6' : '1';
+                checkbox.innerHTML = `
+                    <input type="checkbox" value="${table.viewId}" ${isConfigured ? 'disabled checked' : ''}>
+                    <span>${table.viewName} ${isConfigured ? '✅' : ''}</span>
+                `;
+                selector.appendChild(checkbox);
+            });
+        }
+
+        // Add selected tables to configuration
+        async function addSelectedTables() {
+            const checkboxes = document.querySelectorAll('#availableTableSelector input[type="checkbox"]:checked:not(:disabled)');
+            const selectedViewIds = Array.from(checkboxes).map(cb => cb.value);
+
+            if (selectedViewIds.length === 0) {
+                alert('Please select at least one new table to add.');
+                return;
+            }
+
+            const selectedTables = availableTables.filter(table => selectedViewIds.includes(table.viewId));
+
+            if (!confirm(`Add ${selectedTables.length} selected tables to configuration?`)) {
+                return;
+            }
+
+            const btn = document.getElementById('addTablesBtn');
+            const loading = document.getElementById('addTablesLoading');
+
+            btn.disabled = true;
+            loading.classList.remove('hidden');
+            addLog(`➕ Adding ${selectedTables.length} tables to configuration...`, 'info');
+
+            try {
+                const response = await fetch('/api/configure-tables', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ selectedTables })
+                });
+                const result = await response.json();
+
+                if (result.success) {
+                    addLog(`✅ Successfully added ${result.addedCount} new tables to configuration`, 'success');
+                    if (result.skippedCount > 0) {
+                        addLog(`ℹ️ Skipped ${result.skippedCount} tables (already configured)`, 'info');
+                    }
+
+                    // Refresh the data
+                    await loadTables();
+                    populateAvailableTablesSection(availableTables);
+                    refreshStatus();
+                } else {
+                    addLog(`❌ Failed to add tables: ${result.error}`, 'error');
+                }
+            } catch (error) {
+                addLog(`Configuration error: ${error.message}`, 'error');
             } finally {
                 btn.disabled = false;
                 loading.classList.add('hidden');
