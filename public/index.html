@@ -372,6 +372,58 @@
                 </div>
             </div>
 
+            <!-- Automatic Replication Section -->
+            <div class="section">
+                <h2>⏰ Automatic Replication</h2>
+                <div class="status-section">
+                    <div class="status-grid">
+                        <div class="status-item">
+                            <div class="status-value" id="schedulerStatus">Loading...</div>
+                            <div class="status-label">Scheduler Status</div>
+                        </div>
+                        <div class="status-item">
+                            <div class="status-value" id="scheduleTime">-</div>
+                            <div class="status-label">Schedule Time</div>
+                        </div>
+                        <div class="status-item">
+                            <div class="status-value" id="nextRun">-</div>
+                            <div class="status-label">Next Run</div>
+                        </div>
+                        <div class="status-item">
+                            <div class="status-value" id="lastRun">-</div>
+                            <div class="status-label">Last Run</div>
+                        </div>
+                    </div>
+
+                    <div class="management-controls" style="margin-top: 20px;">
+                        <button class="btn success" onclick="startScheduler()" id="startSchedulerBtn">
+                            <span>▶️</span>
+                            <span>Start Scheduler</span>
+                            <span class="loading hidden" id="startSchedulerLoading"></span>
+                        </button>
+                        <button class="btn secondary" onclick="stopScheduler()" id="stopSchedulerBtn">
+                            <span>⏸️</span>
+                            <span>Stop Scheduler</span>
+                            <span class="loading hidden" id="stopSchedulerLoading"></span>
+                        </button>
+                        <button class="btn" onclick="triggerManualReplication()" id="triggerReplicationBtn">
+                            <span>🚀</span>
+                            <span>Run Now</span>
+                            <span class="loading hidden" id="triggerLoading"></span>
+                        </button>
+                        <button class="btn" onclick="refreshSchedulerStatus()">
+                            <span>🔄</span>
+                            <span>Refresh</span>
+                        </button>
+                    </div>
+
+                    <div id="lastRunResult" class="hidden" style="margin-top: 20px; padding: 15px; border-radius: 8px;">
+                        <h4>📊 Last Run Result</h4>
+                        <div id="lastRunDetails"></div>
+                    </div>
+                </div>
+            </div>
+
             <!-- Available Zoho Tables -->
             <div class="section">
                 <h2>📊 Available Zoho Tables</h2>
@@ -498,6 +550,7 @@
         document.addEventListener('DOMContentLoaded', function() {
             refreshStatus();
             loadTables();
+            refreshSchedulerStatus();
         });
 
         // Add log entry
@@ -516,12 +569,17 @@
             try {
                 const response = await fetch('/status');
                 const status = await response.json();
-                
+
                 document.getElementById('serviceStatus').textContent = status.status === 'ready' ? '✅ Ready' : '❌ Not Ready';
                 document.getElementById('tablesCount').textContent = status.configuredTables;
                 document.getElementById('zohoStatus').textContent = status.environment.zohoConfigured ? '✅ OK' : '❌ Not Configured';
                 document.getElementById('supabaseStatus').textContent = status.environment.supabaseConfigured ? '✅ OK' : '❌ Not Configured';
-                
+
+                // Update scheduler status in main status section
+                if (status.scheduler) {
+                    updateSchedulerDisplay(status.scheduler);
+                }
+
                 addLog('System status refreshed', 'info');
             } catch (error) {
                 addLog(`Failed to refresh status: ${error.message}`, 'error');
@@ -919,6 +977,183 @@
                 }
             } catch (error) {
                 addLog(`Error removing tables: ${error.message}`, 'error');
+            } finally {
+                btn.disabled = false;
+                loading.classList.add('hidden');
+            }
+        }
+
+        // Scheduler Management Functions
+
+        async function refreshSchedulerStatus() {
+            try {
+                const response = await fetch('/scheduler/status');
+                const result = await response.json();
+
+                if (result.success) {
+                    updateSchedulerDisplay(result.scheduler);
+                    addLog('Scheduler status refreshed', 'info');
+                } else {
+                    addLog(`Failed to refresh scheduler status: ${result.error}`, 'error');
+                }
+            } catch (error) {
+                addLog(`Error refreshing scheduler status: ${error.message}`, 'error');
+            }
+        }
+
+        function updateSchedulerDisplay(scheduler) {
+            // Update status indicators
+            document.getElementById('schedulerStatus').textContent = scheduler.isRunning ? '✅ Running' : '⏸️ Stopped';
+            document.getElementById('scheduleTime').textContent = `${scheduler.scheduleTime} (${scheduler.timezone})`;
+
+            // Update next run
+            if (scheduler.nextRun) {
+                const nextRun = new Date(scheduler.nextRun);
+                document.getElementById('nextRun').textContent = nextRun.toLocaleString();
+            } else {
+                document.getElementById('nextRun').textContent = scheduler.isRunning ? 'Calculating...' : 'Not scheduled';
+            }
+
+            // Update last run
+            if (scheduler.lastRun) {
+                const lastRun = new Date(scheduler.lastRun);
+                document.getElementById('lastRun').textContent = lastRun.toLocaleString();
+            } else {
+                document.getElementById('lastRun').textContent = 'Never';
+            }
+
+            // Update button states
+            const startBtn = document.getElementById('startSchedulerBtn');
+            const stopBtn = document.getElementById('stopSchedulerBtn');
+
+            if (scheduler.isRunning) {
+                startBtn.style.display = 'none';
+                stopBtn.style.display = '';
+            } else {
+                startBtn.style.display = '';
+                stopBtn.style.display = 'none';
+            }
+
+            // Update last run result
+            updateLastRunResult(scheduler.lastRunResult);
+        }
+
+        function updateLastRunResult(lastRunResult) {
+            const resultDiv = document.getElementById('lastRunResult');
+            const detailsDiv = document.getElementById('lastRunDetails');
+
+            if (lastRunResult) {
+                resultDiv.classList.remove('hidden');
+
+                const success = lastRunResult.success;
+                resultDiv.style.backgroundColor = success ? '#d4edda' : '#f8d7da';
+                resultDiv.style.borderLeft = success ? '4px solid #28a745' : '4px solid #dc3545';
+
+                let detailsHTML = `
+                    <p><strong>Status:</strong> <span style="color: ${success ? '#28a745' : '#dc3545'}">${success ? '✅ Success' : '❌ Failed'}</span></p>
+                    <p><strong>Time:</strong> ${new Date(lastRunResult.timestamp).toLocaleString()}</p>
+                `;
+
+                if (success) {
+                    detailsHTML += `
+                        <p><strong>Zoho Exported:</strong> ${lastRunResult.zohoExported} tables</p>
+                        <p><strong>Supabase Imported:</strong> ${lastRunResult.supabaseImported} tables</p>
+                        <p><strong>Duration:</strong> ${Math.round(lastRunResult.duration / 1000)} seconds</p>
+                    `;
+                } else {
+                    detailsHTML += `<p><strong>Error:</strong> ${lastRunResult.error}</p>`;
+                }
+
+                if (lastRunResult.manual) {
+                    detailsHTML += `<p><strong>Trigger:</strong> Manual</p>`;
+                }
+
+                detailsDiv.innerHTML = detailsHTML;
+            } else {
+                resultDiv.classList.add('hidden');
+            }
+        }
+
+        async function startScheduler() {
+            const btn = document.getElementById('startSchedulerBtn');
+            const loading = document.getElementById('startSchedulerLoading');
+
+            btn.disabled = true;
+            loading.classList.remove('hidden');
+            addLog('Starting scheduler...', 'info');
+
+            try {
+                const response = await fetch('/scheduler/start', { method: 'POST' });
+                const result = await response.json();
+
+                if (result.success) {
+                    addLog('✅ Scheduler started successfully', 'success');
+                    updateSchedulerDisplay(result.scheduler);
+                } else {
+                    addLog(`❌ Failed to start scheduler: ${result.error}`, 'error');
+                }
+            } catch (error) {
+                addLog(`Error starting scheduler: ${error.message}`, 'error');
+            } finally {
+                btn.disabled = false;
+                loading.classList.add('hidden');
+            }
+        }
+
+        async function stopScheduler() {
+            const btn = document.getElementById('stopSchedulerBtn');
+            const loading = document.getElementById('stopSchedulerLoading');
+
+            btn.disabled = true;
+            loading.classList.remove('hidden');
+            addLog('Stopping scheduler...', 'info');
+
+            try {
+                const response = await fetch('/scheduler/stop', { method: 'POST' });
+                const result = await response.json();
+
+                if (result.success) {
+                    addLog('✅ Scheduler stopped successfully', 'success');
+                    updateSchedulerDisplay(result.scheduler);
+                } else {
+                    addLog(`❌ Failed to stop scheduler: ${result.error}`, 'error');
+                }
+            } catch (error) {
+                addLog(`Error stopping scheduler: ${error.message}`, 'error');
+            } finally {
+                btn.disabled = false;
+                loading.classList.add('hidden');
+            }
+        }
+
+        async function triggerManualReplication() {
+            if (!confirm('This will start a manual replication of all configured tables. This may take some time. Continue?')) {
+                return;
+            }
+
+            const btn = document.getElementById('triggerReplicationBtn');
+            const loading = document.getElementById('triggerLoading');
+
+            btn.disabled = true;
+            loading.classList.remove('hidden');
+            addLog('🚀 Triggering manual replication...', 'info');
+
+            try {
+                const response = await fetch('/scheduler/trigger', { method: 'POST' });
+                const result = await response.json();
+
+                if (result.success) {
+                    addLog('✅ Manual replication completed successfully', 'success');
+                    addLog(`📊 Exported: ${result.replication.zohoExported} tables, Imported: ${result.replication.supabaseImported} tables`, 'info');
+                    addLog(`⏱️ Duration: ${Math.round(result.replication.duration / 1000)} seconds`, 'info');
+                } else {
+                    addLog(`❌ Manual replication failed: ${result.error}`, 'error');
+                }
+
+                // Refresh scheduler status to show updated last run info
+                refreshSchedulerStatus();
+            } catch (error) {
+                addLog(`Manual replication error: ${error.message}`, 'error');
             } finally {
                 btn.disabled = false;
                 loading.classList.add('hidden');

@@ -31,6 +31,17 @@ class BulkReplicator {
       anonKey: process.env.SUPABASE_ANON_KEY,
       serviceRoleKey: process.env.SUPABASE_SERVICE_ROLE_KEY
     });
+
+    // Scheduler state tracking
+    this.schedulerState = {
+      isRunning: false,
+      scheduleTime: process.env.SCHEDULE_TIME || '0 1 * * *',
+      timezone: process.env.TIMEZONE || 'UTC',
+      task: null,
+      lastRun: null,
+      lastRunResult: null,
+      nextRun: null
+    };
   }
 
   async validateConfiguration() {
@@ -266,36 +277,165 @@ class BulkReplicator {
     }
   }
 
+  // Calculate next run time for cron expression
+  calculateNextRun() {
+    try {
+      // Simple next run calculation - in production you'd use a proper cron parser
+      const now = new Date();
+      const [minute, hour, day, month, dayOfWeek] = this.schedulerState.scheduleTime.split(' ');
+
+      // For daily schedule like "0 1 * * *" (1:00 AM daily)
+      if (hour !== '*' && minute !== '*') {
+        const nextRun = new Date(now);
+        nextRun.setHours(parseInt(hour), parseInt(minute), 0, 0);
+
+        // If the time has already passed today, schedule for tomorrow
+        if (nextRun <= now) {
+          nextRun.setDate(nextRun.getDate() + 1);
+        }
+
+        return nextRun;
+      }
+
+      // Fallback for complex expressions
+      return new Date(now.getTime() + 24 * 60 * 60 * 1000); // Next day
+    } catch (error) {
+      console.error('Error calculating next run:', error);
+      return null;
+    }
+  }
+
   // Start scheduled daily replication
   startScheduler() {
-    const scheduleTime = process.env.SCHEDULE_TIME || '0 1 * * *'; // Default: 1:00 AM UTC
-    const timezone = process.env.TIMEZONE || 'UTC';
-    
+    // Don't start if already running
+    if (this.schedulerState.isRunning) {
+      console.log('⚠️ Scheduler is already running');
+      return false;
+    }
+
+    const scheduleTime = this.schedulerState.scheduleTime;
+    const timezone = this.schedulerState.timezone;
+
     console.log(`📅 Starting scheduled replication: ${scheduleTime} (${timezone})`);
-    
-    cron.schedule(scheduleTime, async () => {
+
+    this.schedulerState.task = cron.schedule(scheduleTime, async () => {
       try {
         console.log(`\n🌙 Starting scheduled daily replication at ${new Date().toISOString()}`);
-        await this.replicateAllTables();
+        this.schedulerState.lastRun = new Date();
+
+        const results = await this.replicateAllTables();
+
+        this.schedulerState.lastRunResult = {
+          success: results.success,
+          timestamp: new Date(),
+          zohoExported: results.zohoExport?.success?.length || 0,
+          supabaseImported: results.supabaseImport?.success?.length || 0,
+          duration: results.totalDuration
+        };
+
         console.log(`✅ Scheduled replication completed successfully`);
       } catch (error) {
         console.error(`❌ Scheduled replication failed:`, error.message);
+
+        this.schedulerState.lastRunResult = {
+          success: false,
+          timestamp: new Date(),
+          error: error.message
+        };
       }
+
+      // Calculate next run after completion
+      this.schedulerState.nextRun = this.calculateNextRun();
     }, {
       scheduled: true,
       timezone: timezone
     });
-    
+
+    this.schedulerState.isRunning = true;
+    this.schedulerState.nextRun = this.calculateNextRun();
+
     console.log(`⏰ Daily replication scheduled for ${scheduleTime} ${timezone}`);
     console.log(`📊 Will replicate ${BULK_EXPORT_TABLES.length} tables automatically`);
-    
+    console.log(`🕐 Next run: ${this.schedulerState.nextRun?.toISOString() || 'Unknown'}`);
+
     return true;
   }
 
   // Stop scheduler (for graceful shutdown)
   stopScheduler() {
     console.log('⏹️  Stopping scheduled replication...');
-    // Cron jobs will be stopped when the process exits
+
+    if (this.schedulerState.task) {
+      this.schedulerState.task.stop();
+      this.schedulerState.task = null;
+    }
+
+    this.schedulerState.isRunning = false;
+    this.schedulerState.nextRun = null;
+
+    console.log('✅ Scheduler stopped successfully');
+    return true;
+  }
+
+  // Get scheduler status
+  getSchedulerStatus() {
+    return {
+      isRunning: this.schedulerState.isRunning,
+      scheduleTime: this.schedulerState.scheduleTime,
+      timezone: this.schedulerState.timezone,
+      nextRun: this.schedulerState.nextRun,
+      lastRun: this.schedulerState.lastRun,
+      lastRunResult: this.schedulerState.lastRunResult
+    };
+  }
+
+  // Trigger manual replication
+  async triggerReplication() {
+    try {
+      console.log('🚀 Manual replication triggered');
+      const results = await this.replicateAllTables();
+
+      // Update last run info (but don't interfere with scheduled runs)
+      const manualRunResult = {
+        success: results.success,
+        timestamp: new Date(),
+        zohoExported: results.zohoExport?.success?.length || 0,
+        supabaseImported: results.supabaseImport?.success?.length || 0,
+        duration: results.totalDuration,
+        manual: true
+      };
+
+      console.log('✅ Manual replication completed');
+      return manualRunResult;
+    } catch (error) {
+      console.error('❌ Manual replication failed:', error.message);
+      return {
+        success: false,
+        timestamp: new Date(),
+        error: error.message,
+        manual: true
+      };
+    }
+  }
+
+  // Update scheduler configuration
+  updateSchedulerConfig(scheduleTime, timezone) {
+    const wasRunning = this.schedulerState.isRunning;
+
+    // Stop current scheduler
+    if (wasRunning) {
+      this.stopScheduler();
+    }
+
+    // Update configuration
+    this.schedulerState.scheduleTime = scheduleTime || this.schedulerState.scheduleTime;
+    this.schedulerState.timezone = timezone || this.schedulerState.timezone;
+
+    // Restart if it was running
+    if (wasRunning) {
+      return this.startScheduler();
+    }
+
     return true;
   }
 }

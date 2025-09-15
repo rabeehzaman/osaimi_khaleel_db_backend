@@ -486,6 +486,159 @@ app.post('/api/remove-tables', async (req, res) => {
   }
 });
 
+// Scheduler Management Endpoints
+
+// Get detailed scheduler status
+app.get('/scheduler/status', (req, res) => {
+  if (!replicator) {
+    return res.status(500).json({
+      success: false,
+      error: 'Replicator not initialized'
+    });
+  }
+
+  try {
+    const status = replicator.getSchedulerStatus();
+    res.json({
+      success: true,
+      scheduler: status,
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      error: error.message,
+      timestamp: new Date().toISOString()
+    });
+  }
+});
+
+// Start the scheduler
+app.post('/scheduler/start', (req, res) => {
+  if (!replicator) {
+    return res.status(500).json({
+      success: false,
+      error: 'Replicator not initialized'
+    });
+  }
+
+  try {
+    const started = replicator.startScheduler();
+    const status = replicator.getSchedulerStatus();
+
+    res.json({
+      success: true,
+      message: started ? 'Scheduler started successfully' : 'Scheduler was already running',
+      scheduler: status,
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      error: error.message,
+      timestamp: new Date().toISOString()
+    });
+  }
+});
+
+// Stop the scheduler
+app.post('/scheduler/stop', (req, res) => {
+  if (!replicator) {
+    return res.status(500).json({
+      success: false,
+      error: 'Replicator not initialized'
+    });
+  }
+
+  try {
+    replicator.stopScheduler();
+    const status = replicator.getSchedulerStatus();
+
+    res.json({
+      success: true,
+      message: 'Scheduler stopped successfully',
+      scheduler: status,
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      error: error.message,
+      timestamp: new Date().toISOString()
+    });
+  }
+});
+
+// Trigger immediate replication
+app.post('/scheduler/trigger', async (req, res) => {
+  if (!replicator) {
+    return res.status(500).json({
+      success: false,
+      error: 'Replicator not initialized'
+    });
+  }
+
+  try {
+    console.log('🚀 Manual replication triggered via API...');
+
+    // Set a longer timeout for manual replication
+    req.setTimeout(30 * 60 * 1000); // 30 minutes
+    res.setTimeout(30 * 60 * 1000);
+
+    const result = await replicator.triggerReplication();
+
+    res.json({
+      success: result.success,
+      message: result.success ? 'Manual replication completed successfully' : 'Manual replication failed',
+      replication: result,
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      error: error.message,
+      timestamp: new Date().toISOString()
+    });
+  }
+});
+
+// Update scheduler configuration
+app.put('/scheduler/config', (req, res) => {
+  if (!replicator) {
+    return res.status(500).json({
+      success: false,
+      error: 'Replicator not initialized'
+    });
+  }
+
+  try {
+    const { scheduleTime, timezone } = req.body;
+
+    if (!scheduleTime && !timezone) {
+      return res.status(400).json({
+        success: false,
+        error: 'Please provide scheduleTime or timezone to update'
+      });
+    }
+
+    replicator.updateSchedulerConfig(scheduleTime, timezone);
+    const status = replicator.getSchedulerStatus();
+
+    res.json({
+      success: true,
+      message: 'Scheduler configuration updated successfully',
+      scheduler: status,
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      error: error.message,
+      timestamp: new Date().toISOString()
+    });
+  }
+});
+
 // Debug endpoint to check Zoho client configuration
 app.get('/debug/zoho-config', (req, res) => {
   if (!replicator) {
@@ -566,6 +719,7 @@ app.get('/status', (req, res) => {
       zohoConfigured: !!(process.env.ZOHO_CLIENT_ID && process.env.ZOHO_CLIENT_SECRET),
       supabaseConfigured: !!(process.env.SUPABASE_URL && process.env.SUPABASE_ANON_KEY)
     },
+    scheduler: replicator ? replicator.getSchedulerStatus() : null,
     timestamp: new Date().toISOString()
   };
 
