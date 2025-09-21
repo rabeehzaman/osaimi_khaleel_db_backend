@@ -155,24 +155,61 @@ class SupabaseBulkClient {
   }
 
   // Clean column names for Supabase compatibility
-  cleanColumnName(columnName) {
-    return columnName
+  cleanColumnName(columnName, fallbackIndex = null) {
+    // Handle empty or null column names
+    if (!columnName || typeof columnName !== 'string' || !columnName.trim()) {
+      return fallbackIndex !== null ? `col_${fallbackIndex}_empty` : 'unnamed_column';
+    }
+
+    // Check for non-Latin characters (Arabic, Chinese, etc.)
+    const hasNonLatin = /[^\x00-\x7F]/.test(columnName);
+
+    if (hasNonLatin && fallbackIndex !== null) {
+      // For non-Latin text, create a stable hash-based name
+      const crypto = require('crypto');
+      const hash = crypto.createHash('md5')
+        .update(columnName)
+        .digest('hex')
+        .substring(0, 8);
+      return `col_${fallbackIndex}_${hash}`;
+    }
+
+    // Standard cleaning for Latin characters
+    let cleaned = columnName
       .toLowerCase()
       .replace(/[^a-z0-9_]/g, '_')
       .replace(/_{2,}/g, '_')
       .replace(/^_|_$/g, '')
       .substring(0, 63); // PostgreSQL column name limit
+
+    // If cleaning results in empty string, provide fallback
+    if (!cleaned) {
+      return fallbackIndex !== null ? `col_${fallbackIndex}_cleaned` : 'unnamed_column';
+    }
+
+    return cleaned;
   }
 
-  // Clean headers and handle duplicates
+  // Clean headers and handle duplicates with position-based naming
   cleanHeaders(headers) {
     const cleanedHeaders = [];
     const seenNames = new Set();
     const headerMapping = {};
-    
-    headers.forEach(header => {
-      let cleanName = this.cleanColumnName(header);
-      
+
+    console.log(`📋 Processing ${headers.length} column headers for language-safe naming`);
+
+    headers.forEach((header, index) => {
+      // Use position-aware cleaning that handles non-Latin characters
+      let cleanName = this.cleanColumnName(header, index);
+
+      // Log problematic headers for debugging
+      const hasNonLatin = /[^\x00-\x7F]/.test(header || '');
+      const isEmpty = !header || !header.trim();
+
+      if (hasNonLatin || isEmpty) {
+        console.log(`🔤 Column ${index}: "${header}" → "${cleanName}" (${hasNonLatin ? 'non-Latin' : 'empty'})`);
+      }
+
       // Handle duplicates by adding a suffix
       let finalName = cleanName;
       let counter = 1;
@@ -180,12 +217,14 @@ class SupabaseBulkClient {
         finalName = `${cleanName}_${counter}`;
         counter++;
       }
-      
+
       seenNames.add(finalName);
       cleanedHeaders.push(finalName);
       headerMapping[header] = finalName;
     });
-    
+
+    console.log(`✅ Generated stable column names: ${cleanedHeaders.join(', ')}`);
+
     return { cleanedHeaders, headerMapping };
   }
 

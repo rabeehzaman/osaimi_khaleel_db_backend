@@ -135,8 +135,15 @@ class ZohoBulkClient {
         // Use the proxy endpoint
         console.log(`🔄 Using credential server proxy for data export...`);
 
+        // Build CONFIG with hidden columns support
+        const config = {
+          responseFormat: format,
+          showHiddenCols: process.env.INCLUDE_HIDDEN_COLUMNS === 'true'
+        };
+
         const queryParams = {
-          ZOHO_OUTPUT_FORMAT: format.toUpperCase()
+          ZOHO_OUTPUT_FORMAT: format.toUpperCase(),
+          CONFIG: JSON.stringify(config)
         };
 
         const response = await axios.get(
@@ -167,11 +174,13 @@ class ZohoBulkClient {
       } else {
         // Direct API call (backward compatibility)
         const config = {
-          responseFormat: format
+          responseFormat: format,
+          showHiddenCols: process.env.INCLUDE_HIDDEN_COLUMNS === 'true'
         };
 
         const queryParams = {
-          ZOHO_OUTPUT_FORMAT: format.toUpperCase()
+          ZOHO_OUTPUT_FORMAT: format.toUpperCase(),
+          CONFIG: JSON.stringify(config)
         };
 
         const response = await axios.get(
@@ -180,7 +189,8 @@ class ZohoBulkClient {
             headers: {
               'Authorization': `Zoho-oauthtoken ${this.tokens.access_token}`,
               'ZANALYTICS-ORGID': this.orgId,
-              'Accept': format === 'csv' ? 'text/csv' : 'application/json'
+              'Accept': format === 'csv' ? 'text/csv' : 'application/json',
+              'Accept-Language': 'en-US'
             },
             params: queryParams,
             timeout: 300000,
