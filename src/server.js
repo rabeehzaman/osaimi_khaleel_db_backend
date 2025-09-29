@@ -639,6 +639,118 @@ app.put('/scheduler/config', (req, res) => {
   }
 });
 
+// Zoho Books Language Management Endpoints
+
+// Get current Zoho Books language
+app.get('/api/zoho-books/language', async (req, res) => {
+  if (!replicator || !replicator.zohoBooksClient) {
+    return res.status(500).json({
+      success: false,
+      error: 'Zoho Books client not initialized'
+    });
+  }
+
+  try {
+    const language = await replicator.zohoBooksClient.getCurrentLanguage();
+    const status = replicator.zohoBooksClient.getStatus();
+
+    res.json({
+      success: true,
+      language: language,
+      status: status,
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      error: error.message,
+      timestamp: new Date().toISOString()
+    });
+  }
+});
+
+// Manually switch Zoho Books language
+app.post('/api/zoho-books/language', async (req, res) => {
+  if (!replicator || !replicator.zohoBooksClient) {
+    return res.status(500).json({
+      success: false,
+      error: 'Zoho Books client not initialized'
+    });
+  }
+
+  const { language } = req.body;
+
+  if (!language || !['en', 'ar'].includes(language)) {
+    return res.status(400).json({
+      success: false,
+      error: 'Please provide a valid language code (en or ar)'
+    });
+  }
+
+  try {
+    console.log(`🌐 Manual language switch requested: ${language}`);
+    const result = await replicator.zohoBooksClient.switchLanguage(language);
+
+    res.json({
+      success: result.success,
+      message: result.message,
+      previousLanguage: result.previousLanguage,
+      newLanguage: result.newLanguage,
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      error: error.message,
+      timestamp: new Date().toISOString()
+    });
+  }
+});
+
+// Test Zoho Books connection
+app.get('/api/zoho-books/test', async (req, res) => {
+  if (!replicator || !replicator.zohoBooksClient) {
+    return res.status(500).json({
+      success: false,
+      error: 'Zoho Books client not initialized'
+    });
+  }
+
+  try {
+    const result = await replicator.zohoBooksClient.testConnection();
+
+    res.json({
+      success: true,
+      ...result,
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      error: error.message,
+      timestamp: new Date().toISOString()
+    });
+  }
+});
+
+// Get language switch schedule status
+app.get('/api/zoho-books/schedule', (req, res) => {
+  if (!replicator) {
+    return res.status(500).json({
+      success: false,
+      error: 'Replicator not initialized'
+    });
+  }
+
+  const schedulerStatus = replicator.getSchedulerStatus();
+
+  res.json({
+    success: true,
+    languageSwitching: schedulerStatus.languageSwitching,
+    timestamp: new Date().toISOString()
+  });
+});
+
 // Debug endpoint to check Zoho client configuration
 app.get('/debug/zoho-config', (req, res) => {
   if (!replicator) {

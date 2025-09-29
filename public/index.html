@@ -214,6 +214,10 @@
             color: #74c0fc;
         }
 
+        .log-entry.warning {
+            color: #ffa726;
+        }
+
         .selective-replication {
             background: #f8f9fa;
             padding: 20px;
@@ -316,6 +320,217 @@
             display: flex;
             gap: 5px;
         }
+
+        /* New Simplified Dashboard Styles */
+        .status-bar {
+            display: flex;
+            gap: 20px;
+            background: #f8f9fa;
+            padding: 15px 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+
+        .status-bar .status-item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .status-bar .status-label {
+            font-size: 0.9rem;
+            color: #666;
+            font-weight: 500;
+        }
+
+        .status-bar .status-value {
+            font-size: 1.1rem;
+            font-weight: bold;
+            color: #333;
+        }
+
+        .action-bar {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+
+        .btn.primary {
+            background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+        }
+
+        .table-controls {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+            gap: 15px;
+        }
+
+        .search-box input {
+            padding: 10px 15px;
+            border: 2px solid #e9ecef;
+            border-radius: 25px;
+            font-size: 1rem;
+            width: 300px;
+            max-width: 100%;
+            transition: border-color 0.3s;
+        }
+
+        .search-box input:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .selection-controls {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+
+        .btn-small {
+            padding: 8px 15px;
+            background: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 5px;
+            font-size: 0.9rem;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .btn-small:hover {
+            background: #e9ecef;
+        }
+
+        .selection-info {
+            font-size: 0.9rem;
+            color: #666;
+            font-weight: 500;
+        }
+
+        .table-container {
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            overflow: hidden;
+            margin-bottom: 20px;
+        }
+
+        .clean-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        .clean-table th,
+        .clean-table td {
+            padding: 15px;
+            text-align: left;
+            border-bottom: 1px solid #e9ecef;
+        }
+
+        .clean-table th {
+            background: #f8f9fa;
+            font-weight: 600;
+            color: #495057;
+        }
+
+        .clean-table tbody tr {
+            transition: background-color 0.2s;
+        }
+
+        .clean-table tbody tr:hover {
+            background: #f8f9fa;
+        }
+
+        .clean-table tbody tr.selected {
+            background: #e3f2fd;
+        }
+
+        .table-status {
+            padding: 4px 8px;
+            border-radius: 12px;
+            font-size: 0.8rem;
+            font-weight: 500;
+        }
+
+        .table-status.active {
+            background: #d4edda;
+            color: #155724;
+        }
+
+        .table-status.inactive {
+            background: #f8d7da;
+            color: #721c24;
+        }
+
+        .message-area {
+            background: #f8f9fa;
+            border-radius: 8px;
+            padding: 15px;
+            margin-top: 20px;
+        }
+
+        .message-item {
+            padding: 10px 15px;
+            border-radius: 5px;
+            margin-bottom: 10px;
+        }
+
+        .message-item.info {
+            background: #d1ecf1;
+            color: #0c5460;
+            border-left: 4px solid #17a2b8;
+        }
+
+        .message-item.success {
+            background: #d4edda;
+            color: #155724;
+            border-left: 4px solid #28a745;
+        }
+
+        .message-item.error {
+            background: #f8d7da;
+            color: #721c24;
+            border-left: 4px solid #dc3545;
+        }
+
+        .message-item:last-child {
+            margin-bottom: 0;
+        }
+
+        /* Responsive Design */
+        @media (max-width: 768px) {
+            .status-bar {
+                flex-direction: column;
+                gap: 10px;
+            }
+
+            .action-bar {
+                flex-direction: column;
+            }
+
+            .table-controls {
+                flex-direction: column;
+                align-items: stretch;
+            }
+
+            .search-box input {
+                width: 100%;
+            }
+
+            .clean-table {
+                font-size: 0.9rem;
+            }
+
+            .clean-table th,
+            .clean-table td {
+                padding: 10px 8px;
+            }
+        }
     </style>
 </head>
 <body>
@@ -326,800 +541,624 @@
         </div>
 
         <div class="main-content">
-            <!-- Status Section -->
-            <div class="section">
-                <h2>📊 System Status</h2>
-                <div class="status-section">
-                    <div class="status-grid" id="statusGrid">
-                        <div class="status-item">
-                            <div class="status-value" id="serviceStatus">Loading...</div>
-                            <div class="status-label">Service Status</div>
-                        </div>
-                        <div class="status-item">
-                            <div class="status-value" id="tablesCount">-</div>
-                            <div class="status-label">Configured Tables</div>
-                        </div>
-                        <div class="status-item">
-                            <div class="status-value" id="zohoStatus">-</div>
-                            <div class="status-label">Zoho Connection</div>
-                        </div>
-                        <div class="status-item">
-                            <div class="status-value" id="supabaseStatus">-</div>
-                            <div class="status-label">Supabase Connection</div>
-                        </div>
-                    </div>
+            <!-- Simple Status Bar -->
+            <div class="status-bar">
+                <div class="status-item">
+                    <span class="status-label">Service:</span>
+                    <span class="status-value" id="serviceStatus">Loading...</span>
+                </div>
+                <div class="status-item">
+                    <span class="status-label">Tables:</span>
+                    <span class="status-value" id="tablesCount">-</span>
+                </div>
+                <div class="status-item">
+                    <span class="status-label">Zoho:</span>
+                    <span class="status-value" id="zohoStatus">-</span>
+                </div>
+                <div class="status-item">
+                    <span class="status-label">Supabase:</span>
+                    <span class="status-value" id="supabaseStatus">-</span>
+                </div>
+                <div class="status-item">
+                    <span class="status-label">Scheduler:</span>
+                    <span class="status-value" id="schedulerStatus">-</span>
+                </div>
+                <div class="status-item">
+                    <span class="status-label">Zoho Books Language:</span>
+                    <span class="status-value" id="zohoBooksLanguage">-</span>
                 </div>
             </div>
 
-            <!-- Action Buttons -->
-            <div class="section">
-                <h2>⚡ Quick Actions</h2>
-                <div class="action-buttons">
-                    <button class="btn" onclick="testConnections()">
-                        <span>🔍</span>
-                        <span>Test Connections</span>
-                        <span class="loading hidden" id="testLoading"></span>
+            <!-- Language Switch Controls -->
+            <div class="action-bar" style="background: #f8f9fa; border-radius: 8px; padding: 10px; margin-bottom: 10px;">
+                <div style="display: flex; align-items: center; gap: 15px;">
+                    <span style="font-weight: 600;">🌐 Language Control:</span>
+                    <button class="btn secondary" onclick="switchLanguage('en')" id="switchEnBtn" style="padding: 5px 15px; font-size: 14px;">
+                        <span>🔤</span> English
                     </button>
-                    <button class="btn secondary" onclick="startFullReplication()">
-                        <span>🚀</span>
-                        <span>Start Full Replication</span>
-                        <span class="loading hidden" id="fullLoading"></span>
+                    <button class="btn secondary" onclick="switchLanguage('ar')" id="switchArBtn" style="padding: 5px 15px; font-size: 14px;">
+                        <span>🔤</span> Arabic
                     </button>
-                    <button class="btn success" onclick="refreshStatus()">
-                        <span>🔄</span>
-                        <span>Refresh Status</span>
-                    </button>
+                    <span id="languageSchedule" style="font-size: 12px; color: #6c757d; margin-left: auto;">
+                        Schedule: 11:50 PM → EN | 12:00 AM → Import | 1:00 AM → AR
+                    </span>
                 </div>
             </div>
 
-            <!-- Automatic Replication Section -->
-            <div class="section">
-                <h2>⏰ Automatic Replication</h2>
-                <div class="status-section">
-                    <div class="status-grid">
-                        <div class="status-item">
-                            <div class="status-value" id="schedulerStatus">Loading...</div>
-                            <div class="status-label">Scheduler Status</div>
-                        </div>
-                        <div class="status-item">
-                            <div class="status-value" id="scheduleTime">-</div>
-                            <div class="status-label">Schedule Time</div>
-                        </div>
-                        <div class="status-item">
-                            <div class="status-value" id="nextRun">-</div>
-                            <div class="status-label">Next Run</div>
-                        </div>
-                        <div class="status-item">
-                            <div class="status-value" id="lastRun">-</div>
-                            <div class="status-label">Last Run</div>
-                        </div>
-                    </div>
+            <!-- Simple Action Buttons -->
+            <div class="action-bar">
+                <button class="btn primary" onclick="replicateAll()" id="replicateAllBtn">
+                    <span>🚀</span>
+                    <span>Replicate All Tables</span>
+                    <span class="loading hidden" id="replicateAllLoading"></span>
+                </button>
+                <button class="btn" onclick="replicateSelected()" id="replicateSelectedBtn">
+                    <span>🎯</span>
+                    <span>Replicate Selected</span>
+                    <span class="loading hidden" id="replicateSelectedLoading"></span>
+                </button>
+                <button class="btn secondary" onclick="refreshDashboard()" id="refreshBtn">
+                    <span>🔄</span>
+                    <span>Refresh</span>
+                </button>
+            </div>
 
-                    <div class="management-controls" style="margin-top: 20px;">
-                        <button class="btn success" onclick="startScheduler()" id="startSchedulerBtn">
-                            <span>▶️</span>
-                            <span>Start Scheduler</span>
-                            <span class="loading hidden" id="startSchedulerLoading"></span>
-                        </button>
-                        <button class="btn secondary" onclick="stopScheduler()" id="stopSchedulerBtn">
-                            <span>⏸️</span>
-                            <span>Stop Scheduler</span>
-                            <span class="loading hidden" id="stopSchedulerLoading"></span>
-                        </button>
-                        <button class="btn" onclick="triggerManualReplication()" id="triggerReplicationBtn">
-                            <span>🚀</span>
-                            <span>Run Now</span>
-                            <span class="loading hidden" id="triggerLoading"></span>
-                        </button>
-                        <button class="btn" onclick="refreshSchedulerStatus()">
-                            <span>🔄</span>
-                            <span>Refresh</span>
-                        </button>
-                    </div>
-
-                    <div id="lastRunResult" class="hidden" style="margin-top: 20px; padding: 15px; border-radius: 8px;">
-                        <h4>📊 Last Run Result</h4>
-                        <div id="lastRunDetails"></div>
-                    </div>
+            <!-- Search and Filter -->
+            <div class="table-controls">
+                <div class="search-box">
+                    <input type="text" id="tableSearch" placeholder="🔍 Search tables..." onkeyup="filterTables()">
+                </div>
+                <div class="selection-controls">
+                    <button class="btn-small" onclick="selectAll()">Select All</button>
+                    <button class="btn-small" onclick="selectNone()">Select None</button>
+                    <span class="selection-info" id="selectionInfo">0 selected</span>
                 </div>
             </div>
 
-            <!-- Available Zoho Tables -->
-            <div class="section">
-                <h2>📊 Available Zoho Tables</h2>
-                <div class="selective-replication">
-                    <p>Discover and select tables from your Zoho Analytics workspace:</p>
-
-                    <div class="action-buttons" style="margin-bottom: 20px;">
-                        <button class="btn success" onclick="discoverZohoTables()" id="discoverBtn">
-                            <span>🔍</span>
-                            <span>Discover Available Tables</span>
-                            <span class="loading hidden" id="discoverLoading"></span>
-                        </button>
-                    </div>
-
-                    <div id="availableTablesSection" class="hidden">
-                        <div class="status-section">
-                            <div class="status-grid">
-                                <div class="status-item">
-                                    <div class="status-value" id="totalTablesCount">0</div>
-                                    <div class="status-label">Total Available Tables</div>
-                                </div>
-                                <div class="status-item">
-                                    <div class="status-value" id="configuredTablesCount">0</div>
-                                    <div class="status-label">Already Configured</div>
-                                </div>
-                                <div class="status-item">
-                                    <div class="status-value" id="newTablesCount">0</div>
-                                    <div class="status-label">New Tables Available</div>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div class="table-selector" id="availableTableSelector">
-                            <!-- Available table checkboxes will be populated here -->
-                        </div>
-
-                        <button class="btn" onclick="addSelectedTables()" id="addTablesBtn">
-                            <span>➕</span>
-                            <span>Add Selected Tables to Configuration</span>
-                            <span class="loading hidden" id="addTablesLoading"></span>
-                        </button>
-                    </div>
-                </div>
+            <!-- Single Clean Table -->
+            <div class="table-container">
+                <table class="clean-table" id="tablesTable">
+                    <thead>
+                        <tr>
+                            <th><input type="checkbox" id="selectAllCheckbox" onchange="toggleAll()"></th>
+                            <th>Table Name</th>
+                            <th>Status</th>
+                            <th>Rows</th>
+                            <th>Priority</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tablesBody">
+                        <!-- Table rows will be populated here -->
+                    </tbody>
+                </table>
             </div>
 
-
-            <!-- Tables Information -->
-            <div class="section">
-                <h2>📋 Configured Tables</h2>
-
-                <!-- Table Actions -->
-                <div class="table-management">
-                    <p>Select tables to replicate or manage:</p>
-
-                    <div class="management-controls">
-                        <button class="btn" onclick="startSelectiveReplication()" id="selectiveBtn">
-                            <span>🎯</span>
-                            <span>Replicate Selected</span>
-                            <span class="loading hidden" id="selectiveLoading"></span>
-                        </button>
-                        <button class="btn secondary" onclick="removeSelectedTables()" id="removeSelectedBtn">
-                            <span>🗑️</span>
-                            <span>Remove Selected</span>
-                            <span class="loading hidden" id="removeLoading"></span>
-                        </button>
-                        <button class="btn secondary" onclick="selectAllTables()" id="selectAllBtn">
-                            <span>☑️</span>
-                            <span>Select All</span>
-                        </button>
-                        <button class="btn secondary" onclick="clearAllSelections()" id="clearAllBtn">
-                            <span>🔲</span>
-                            <span>Clear All</span>
-                        </button>
-                    </div>
-                </div>
-
-                <div class="tables-section">
-                    <table class="table" id="tablesTable">
-                        <thead>
-                            <tr>
-                                <th>Select</th>
-                                <th>Table Name</th>
-                                <th>Description</th>
-                                <th>Estimated Rows</th>
-                                <th>Priority</th>
-                                <th>View ID</th>
-                                <th>Actions</th>
-                            </tr>
-                        </thead>
-                        <tbody id="tablesBody">
-                            <!-- Table rows will be populated here -->
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-
-            <!-- Logs Section -->
-            <div class="section">
-                <h2>📝 Activity Logs</h2>
-                <div class="log-section" id="logSection">
-                    <div class="log-entry info">🚀 Dashboard initialized. Ready for replication...</div>
-                </div>
+            <!-- Simple Status Messages -->
+            <div class="message-area" id="messageArea">
+                <div class="message-item info">Dashboard ready. Select tables and click Replicate to start.</div>
             </div>
         </div>
     </div>
 
     <script>
-        // Global state
-        let tables = [];
-        let availableTables = [];
+        // Simple dashboard state management
+        class DashboardState {
+            constructor() {
+                this.tables = [];
+                this.selectedTables = new Set();
+                this.isLoading = false;
+            }
+
+            setTables(tables) {
+                this.tables = tables;
+                this.selectedTables.clear(); // Clear selections when tables reload
+                this.renderTables();
+                this.updateActionButtons();
+            }
+
+            toggleTableSelection(tableName, viewId) {
+                if (this.selectedTables.has(tableName)) {
+                    this.selectedTables.delete(tableName);
+                } else {
+                    this.selectedTables.add(tableName);
+                }
+                this.updateActionButtons();
+                this.log(`${this.selectedTables.has(tableName) ? 'Selected' : 'Deselected'}: ${tableName}`);
+            }
+
+            selectAllTables() {
+                this.tables.forEach(table => this.selectedTables.add(table.tableName));
+                this.updateCheckboxes();
+                this.updateActionButtons();
+                this.log(`All ${this.tables.length} tables selected`);
+            }
+
+            clearAllSelections() {
+                this.selectedTables.clear();
+                this.updateCheckboxes();
+                this.updateActionButtons();
+                this.log('All selections cleared');
+            }
+
+            updateCheckboxes() {
+                document.querySelectorAll('.table-select-checkbox').forEach(checkbox => {
+                    checkbox.checked = this.selectedTables.has(checkbox.value);
+                });
+            }
+
+            updateActionButtons() {
+                const selectedCount = this.selectedTables.size;
+                const replicateSelectedBtn = document.getElementById('replicateSelectedBtn');
+
+                if (replicateSelectedBtn) {
+                    replicateSelectedBtn.disabled = selectedCount === 0;
+                    replicateSelectedBtn.textContent = selectedCount > 0
+                        ? `Replicate Selected (${selectedCount})`
+                        : 'Replicate Selected';
+                }
+            }
+
+            renderTables() {
+                const tbody = document.getElementById('tablesBody');
+                if (!tbody) return;
+
+                tbody.innerHTML = '';
+                this.tables.forEach(table => {
+                    const row = document.createElement('tr');
+                    const isSelected = this.selectedTables.has(table.tableName);
+
+                    row.innerHTML = `
+                        <td class="select-cell">
+                            <input type="checkbox"
+                                   value="${table.tableName}"
+                                   data-view-id="${table.viewId}"
+                                   class="table-select-checkbox"
+                                   ${isSelected ? 'checked' : ''}>
+                        </td>
+                        <td><strong>${table.tableName}</strong></td>
+                        <td>${table.description || 'No description'}</td>
+                        <td>${table.estimatedRows?.toLocaleString() || 'N/A'}</td>
+                        <td><span class="priority ${table.priority || 'medium'}">${(table.priority || 'medium').toUpperCase()}</span></td>
+                        <td><code>${table.viewId}</code></td>
+                        <td class="table-actions">
+                            <button class="delete-btn" onclick="dashboard.removeTable('${table.viewId}', '${table.tableName}')">
+                                🗑️ Remove
+                            </button>
+                        </td>
+                    `;
+                    tbody.appendChild(row);
+                });
+
+                // Add event listeners to checkboxes
+                document.querySelectorAll('.table-select-checkbox').forEach(checkbox => {
+                    checkbox.addEventListener('change', (e) => {
+                        this.toggleTableSelection(e.target.value, e.target.dataset.viewId);
+                    });
+                });
+            }
+
+            log(message, type = 'info') {
+                const logSection = document.getElementById('logSection');
+                if (!logSection) return;
+
+                const timestamp = new Date().toLocaleTimeString();
+                const logEntry = document.createElement('div');
+                logEntry.className = `log-entry ${type}`;
+                logEntry.textContent = `[${timestamp}] ${message}`;
+                logSection.appendChild(logEntry);
+                logSection.scrollTop = logSection.scrollHeight;
+            }
+
+            async loadTables() {
+                try {
+                    this.log('Loading tables configuration...');
+
+                    const response = await fetch('/tables', {
+                        timeout: 10000 // 10 second timeout
+                    });
+
+                    if (!response.ok) {
+                        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                    }
+
+                    const data = await response.json();
+
+                    // Validate response structure
+                    if (!data || typeof data !== 'object') {
+                        throw new Error('Invalid response format from server');
+                    }
+
+                    if (data.success) {
+                        // Validate tables array
+                        if (!Array.isArray(data.tables)) {
+                            throw new Error('Invalid tables data received from server');
+                        }
+
+                        // Validate each table has required fields
+                        const validTables = data.tables.filter(table =>
+                            table &&
+                            typeof table === 'object' &&
+                            table.tableName &&
+                            table.viewId
+                        );
+
+                        if (validTables.length !== data.tables.length) {
+                            this.log(`⚠️ Some tables have missing data, loaded ${validTables.length}/${data.tables.length}`, 'warning');
+                        }
+
+                        this.setTables(validTables);
+                        this.log(`✅ Loaded ${validTables.length} tables`, 'success');
+                        await this.refreshStatus();
+                    } else {
+                        const errorMsg = data.error || 'Unknown error from server';
+                        this.log(`❌ Failed to load tables: ${errorMsg}`, 'error');
+                    }
+                } catch (error) {
+                    this.log(`❌ Error loading tables: ${error.message}`, 'error');
+
+                    // Show user-friendly error message based on error type
+                    if (error.name === 'TypeError' && error.message.includes('fetch')) {
+                        this.log('🔌 Check your internet connection and try again', 'error');
+                    } else if (error.message.includes('timeout')) {
+                        this.log('⏱️ Request timed out, please try again', 'error');
+                    }
+                }
+            }
+
+            async refreshStatus() {
+                try {
+                    const response = await fetch('/status', {
+                        timeout: 5000 // 5 second timeout for status
+                    });
+
+                    if (!response.ok) {
+                        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                    }
+
+                    const status = await response.json();
+
+                    // Validate status response structure
+                    if (!status || typeof status !== 'object') {
+                        throw new Error('Invalid status response from server');
+                    }
+
+                    // Update status indicators with validation
+                    const elements = {
+                        serviceStatus: status.status === 'ready' ? '✅ Ready' : '❌ Not Ready',
+                        tablesCount: (status.configuredTables && typeof status.configuredTables === 'number') ? status.configuredTables : 'N/A',
+                        zohoStatus: (status.environment?.zohoConfigured === true) ? '✅ OK' : '❌ Not Configured',
+                        supabaseStatus: (status.environment?.supabaseConfigured === true) ? '✅ OK' : '❌ Not Configured'
+                    };
+
+                    Object.entries(elements).forEach(([id, value]) => {
+                        const element = document.getElementById(id);
+                        if (element) {
+                            element.textContent = value;
+                        } else {
+                            console.warn(`Status element not found: ${id}`);
+                        }
+                    });
+
+                } catch (error) {
+                    this.log(`❌ Failed to refresh status: ${error.message}`, 'error');
+
+                    // Set error states for status indicators
+                    const errorElements = ['serviceStatus', 'tablesCount', 'zohoStatus', 'supabaseStatus'];
+                    errorElements.forEach(id => {
+                        const element = document.getElementById(id);
+                        if (element) element.textContent = '❌ Error';
+                    });
+                }
+            }
+
+            async replicateAllTables() {
+                // Input validation
+                if (this.tables.length === 0) {
+                    alert('No tables configured for replication. Please add tables first.');
+                    return;
+                }
+
+                if (!confirm('This will replicate ALL configured tables. This may take a long time. Continue?')) {
+                    return;
+                }
+
+                const btn = document.getElementById('replicateAllBtn');
+                this.setButtonLoading(btn, true);
+                this.log('🚀 Starting full replication...');
+
+                try {
+                    const response = await fetch('/replicate', {
+                        method: 'POST',
+                        timeout: 300000 // 5 minute timeout for replication
+                    });
+
+                    if (!response.ok) {
+                        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                    }
+
+                    const result = await response.json();
+
+                    // Validate result structure
+                    if (!result || typeof result !== 'object') {
+                        throw new Error('Invalid response from replication service');
+                    }
+
+                    if (result.success) {
+                        this.log('✅ Full replication completed!', 'success');
+
+                        // Safely extract metrics with defaults
+                        const exported = result.zohoExport?.successful || 0;
+                        const imported = result.supabaseImport?.totalRecords || 0;
+
+                        this.log(`📊 Exported: ${exported} tables, Imported: ${imported} records`);
+
+                        if (result.duration) {
+                            this.log(`⏱️ Duration: ${Math.round(result.duration)} seconds`);
+                        }
+
+                        // Refresh tables after successful replication
+                        await this.loadTables();
+                    } else {
+                        const errorMsg = result.error || 'Unknown replication error';
+                        this.log(`❌ Replication failed: ${errorMsg}`, 'error');
+
+                        // Show specific error guidance
+                        if (errorMsg.includes('quota') || errorMsg.includes('limit')) {
+                            this.log('💡 Try again later when API quota resets', 'warning');
+                        }
+                    }
+                } catch (error) {
+                    this.log(`❌ Replication error: ${error.message}`, 'error');
+
+                    // User-friendly error messages
+                    if (error.message.includes('timeout')) {
+                        this.log('⏱️ Replication timed out. Large datasets may require longer processing time.', 'warning');
+                    } else if (error.message.includes('network')) {
+                        this.log('🔌 Network error. Check your connection and try again.', 'error');
+                    }
+                } finally {
+                    this.setButtonLoading(btn, false);
+                }
+            }
+
+            async replicateSelectedTables() {
+                const selectedArray = Array.from(this.selectedTables);
+
+                // Input validation
+                if (selectedArray.length === 0) {
+                    alert('Please select at least one table to replicate.');
+                    return;
+                }
+
+                // Validate selected tables still exist in current configuration
+                const validSelections = selectedArray.filter(tableName =>
+                    this.tables.some(table => table.tableName === tableName)
+                );
+
+                if (validSelections.length !== selectedArray.length) {
+                    this.log(`⚠️ ${selectedArray.length - validSelections.length} selected tables are no longer available`, 'warning');
+                    this.selectedTables = new Set(validSelections);
+                    this.updateCheckboxes();
+                    this.updateActionButtons();
+                }
+
+                if (validSelections.length === 0) {
+                    alert('No valid tables selected. Please refresh and try again.');
+                    return;
+                }
+
+                if (!confirm(`Replicate ${validSelections.length} selected tables? This may take some time.`)) {
+                    return;
+                }
+
+                const btn = document.getElementById('replicateSelectedBtn');
+                this.setButtonLoading(btn, true);
+                this.log(`🎯 Starting selective replication for: ${validSelections.join(', ')}`);
+
+                try {
+                    const response = await fetch('/replicate/tables', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ tables: validSelections }),
+                        timeout: 300000 // 5 minute timeout
+                    });
+
+                    if (!response.ok) {
+                        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                    }
+
+                    const result = await response.json();
+
+                    // Validate result structure
+                    if (!result || typeof result !== 'object') {
+                        throw new Error('Invalid response from selective replication service');
+                    }
+
+                    if (result.success) {
+                        this.log('✅ Selective replication completed!', 'success');
+
+                        // Safely extract metrics
+                        const exported = result.zohoExport?.successful || 0;
+                        const imported = result.supabaseImport?.totalRecords || 0;
+
+                        this.log(`📊 Exported: ${exported} tables, Imported: ${imported} records`);
+
+                        if (result.duration) {
+                            this.log(`⏱️ Duration: ${Math.round(result.duration)} seconds`);
+                        }
+
+                        // Clear selections after successful replication
+                        this.clearAllSelections();
+                        await this.loadTables();
+                    } else {
+                        const errorMsg = result.error || 'Unknown selective replication error';
+                        this.log(`❌ Selective replication failed: ${errorMsg}`, 'error');
+
+                        // Show specific error guidance
+                        if (errorMsg.includes('quota') || errorMsg.includes('limit')) {
+                            this.log('💡 API quota exceeded. Try selecting fewer tables or wait for quota reset', 'warning');
+                        }
+                    }
+                } catch (error) {
+                    this.log(`❌ Selective replication error: ${error.message}`, 'error');
+
+                    // User-friendly error messages
+                    if (error.message.includes('timeout')) {
+                        this.log('⏱️ Replication timed out. Try selecting fewer tables for faster processing.', 'warning');
+                    } else if (error.message.includes('network')) {
+                        this.log('🔌 Network error. Check your connection and try again.', 'error');
+                    }
+                } finally {
+                    this.setButtonLoading(btn, false);
+                }
+            }
+
+            async removeTable(viewId, tableName) {
+                // Input validation
+                if (!viewId || !tableName) {
+                    this.log('❌ Invalid table data for removal', 'error');
+                    return;
+                }
+
+                // Check if this would remove the last table
+                if (this.tables.length <= 1) {
+                    alert('Cannot remove the last table. At least one table must remain configured.');
+                    return;
+                }
+
+                if (!confirm(`Remove "${tableName}" from replication configuration?\n\nThis will stop replicating this table but will not delete existing data.`)) {
+                    return;
+                }
+
+                this.log(`🗑️ Removing ${tableName}...`);
+
+                try {
+                    const response = await fetch(`/api/configure-tables/${encodeURIComponent(viewId)}`, {
+                        method: 'DELETE',
+                        timeout: 10000 // 10 second timeout
+                    });
+
+                    if (!response.ok) {
+                        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                    }
+
+                    const result = await response.json();
+
+                    // Validate result structure
+                    if (!result || typeof result !== 'object') {
+                        throw new Error('Invalid response from table removal service');
+                    }
+
+                    if (result.success) {
+                        this.log(`✅ Removed ${tableName}`, 'success');
+
+                        // Remove from selected tables if it was selected
+                        this.selectedTables.delete(tableName);
+                        this.updateActionButtons();
+
+                        // Reload tables to reflect changes
+                        await this.loadTables();
+                    } else {
+                        const errorMsg = result.error || 'Unknown removal error';
+                        this.log(`❌ Failed to remove ${tableName}: ${errorMsg}`, 'error');
+                    }
+                } catch (error) {
+                    this.log(`❌ Error removing ${tableName}: ${error.message}`, 'error');
+
+                    // User-friendly error messages
+                    if (error.message.includes('404')) {
+                        this.log('💡 Table may have already been removed. Refreshing...', 'warning');
+                        await this.loadTables();
+                    } else if (error.message.includes('timeout')) {
+                        this.log('⏱️ Removal timed out. Please check if the table was removed and refresh.', 'warning');
+                    }
+                }
+            }
+
+            setButtonLoading(button, loading) {
+                // Validate button element
+                if (!button || typeof button.disabled !== 'boolean') {
+                    console.warn('Invalid button element passed to setButtonLoading');
+                    return;
+                }
+
+                if (loading) {
+                    button.disabled = true;
+                    // Store original text safely
+                    if (!button.dataset.originalText) {
+                        button.dataset.originalText = button.textContent || 'Loading...';
+                    }
+                    button.innerHTML = '<span class="loading-spinner">⏳</span> ' + button.dataset.originalText;
+                } else {
+                    button.disabled = false;
+                    // Restore original text safely
+                    const originalText = button.dataset.originalText || button.textContent.replace(/⏳\s*/, '');
+                    button.textContent = originalText;
+                    // Clean up dataset
+                    delete button.dataset.originalText;
+                }
+            }
+
+            // Utility method for safe DOM element selection
+            safeGetElement(id) {
+                const element = document.getElementById(id);
+                if (!element) {
+                    console.warn(`Element not found: ${id}`);
+                }
+                return element;
+            }
+
+            // Utility method for safe fetch with timeout
+            async safeFetch(url, options = {}) {
+                const defaultTimeout = 10000; // 10 seconds
+                const timeout = options.timeout || defaultTimeout;
+
+                const controller = new AbortController();
+                const timeoutId = setTimeout(() => controller.abort(), timeout);
+
+                try {
+                    const response = await fetch(url, {
+                        ...options,
+                        signal: controller.signal
+                    });
+                    clearTimeout(timeoutId);
+                    return response;
+                } catch (error) {
+                    clearTimeout(timeoutId);
+                    if (error.name === 'AbortError') {
+                        throw new Error('Request timeout');
+                    }
+                    throw error;
+                }
+            }
+        }
 
         // Initialize dashboard
+        const dashboard = new DashboardState();
+
+        // Initialize when page loads
         document.addEventListener('DOMContentLoaded', function() {
-            refreshStatus();
-            loadTables();
-            refreshSchedulerStatus();
+            dashboard.loadTables();
+
+            // Set up button event listeners
+            const buttons = {
+                'replicateAllBtn': () => dashboard.replicateAllTables(),
+                'replicateSelectedBtn': () => dashboard.replicateSelectedTables(),
+                'refreshBtn': () => dashboard.loadTables(),
+                'selectAllBtn': () => dashboard.selectAllTables(),
+                'clearAllBtn': () => dashboard.clearAllSelections()
+            };
+
+            Object.entries(buttons).forEach(([id, handler]) => {
+                const button = document.getElementById(id);
+                if (button) {
+                    button.addEventListener('click', handler);
+                }
+            });
+
+            dashboard.log('✅ Dashboard initialized', 'success');
         });
-
-        // Add log entry
-        function addLog(message, type = 'info') {
-            const logSection = document.getElementById('logSection');
-            const timestamp = new Date().toLocaleTimeString();
-            const logEntry = document.createElement('div');
-            logEntry.className = `log-entry ${type}`;
-            logEntry.textContent = `[${timestamp}] ${message}`;
-            logSection.appendChild(logEntry);
-            logSection.scrollTop = logSection.scrollHeight;
-        }
-
-        // Refresh system status
-        async function refreshStatus() {
-            try {
-                const response = await fetch('/status');
-                const status = await response.json();
-
-                document.getElementById('serviceStatus').textContent = status.status === 'ready' ? '✅ Ready' : '❌ Not Ready';
-                document.getElementById('tablesCount').textContent = status.configuredTables;
-                document.getElementById('zohoStatus').textContent = status.environment.zohoConfigured ? '✅ OK' : '❌ Not Configured';
-                document.getElementById('supabaseStatus').textContent = status.environment.supabaseConfigured ? '✅ OK' : '❌ Not Configured';
-
-                // Update scheduler status in main status section
-                if (status.scheduler) {
-                    updateSchedulerDisplay(status.scheduler);
-                }
-
-                addLog('System status refreshed', 'info');
-            } catch (error) {
-                addLog(`Failed to refresh status: ${error.message}`, 'error');
-            }
-        }
-
-        // Load tables
-        async function loadTables() {
-            try {
-                const response = await fetch('/tables');
-                const data = await response.json();
-                
-                if (data.success) {
-                    tables = data.tables;
-                    populateTablesTable(tables);
-                    addLog(`Loaded ${tables.length} tables configuration`, 'success');
-                } else {
-                    addLog('Failed to load tables configuration', 'error');
-                }
-            } catch (error) {
-                addLog(`Failed to load tables: ${error.message}`, 'error');
-            }
-        }
-
-        // Populate tables table
-        function populateTablesTable(tables) {
-            const tbody = document.getElementById('tablesBody');
-            tbody.innerHTML = '';
-
-            tables.forEach(table => {
-                const row = document.createElement('tr');
-                row.innerHTML = `
-                    <td class="select-cell">
-                        <input type="checkbox" value="${table.tableName}" data-view-id="${table.viewId}" class="table-select-checkbox">
-                    </td>
-                    <td><strong>${table.tableName}</strong></td>
-                    <td>${table.description}</td>
-                    <td>${table.estimatedRows.toLocaleString()}</td>
-                    <td><span class="priority ${table.priority}">${table.priority.toUpperCase()}</span></td>
-                    <td><code>${table.viewId}</code></td>
-                    <td class="table-actions">
-                        <button class="delete-btn" onclick="removeTable('${table.viewId}', '${table.tableName}')" ${tables.length <= 1 ? 'disabled title="Cannot remove the last table"' : ''}>
-                            <span>🗑️</span>
-                            <span>Remove</span>
-                        </button>
-                    </td>
-                `;
-                tbody.appendChild(row);
-            });
-        }
-
-
-        // Test connections
-        async function testConnections() {
-            const btn = document.querySelector('button[onclick="testConnections()"]');
-            const loading = document.getElementById('testLoading');
-            
-            btn.disabled = true;
-            loading.classList.remove('hidden');
-            addLog('Testing connections...', 'info');
-            
-            try {
-                const response = await fetch('/test-connection', { method: 'POST' });
-                const result = await response.json();
-                
-                if (result.success) {
-                    addLog('✅ Connection test successful!', 'success');
-                    refreshStatus();
-                } else {
-                    addLog(`❌ Connection test failed: ${result.message}`, 'error');
-                }
-            } catch (error) {
-                addLog(`Connection test error: ${error.message}`, 'error');
-            } finally {
-                btn.disabled = false;
-                loading.classList.add('hidden');
-            }
-        }
-
-        // Start full replication
-        async function startFullReplication() {
-            if (!confirm('This will replicate ALL tables. This may take a long time. Continue?')) {
-                return;
-            }
-
-            const btn = document.querySelector('button[onclick="startFullReplication()"]');
-            const loading = document.getElementById('fullLoading');
-            
-            btn.disabled = true;
-            loading.classList.remove('hidden');
-            addLog('🚀 Starting full replication...', 'info');
-            
-            try {
-                const response = await fetch('/replicate', { method: 'POST' });
-                const result = await response.json();
-                
-                if (result.success) {
-                    addLog(`✅ Full replication completed!`, 'success');
-                    addLog(`📊 Zoho Export: ${result.zohoExport.successful} successful, ${result.zohoExport.failed} failed`, 'info');
-                    addLog(`💾 Supabase Import: ${result.supabaseImport.totalRecords} records imported`, 'info');
-                    addLog(`⏱️ Duration: ${result.duration} seconds`, 'info');
-                } else {
-                    addLog(`❌ Full replication failed: ${result.error}`, 'error');
-                }
-            } catch (error) {
-                addLog(`Replication error: ${error.message}`, 'error');
-            } finally {
-                btn.disabled = false;
-                loading.classList.add('hidden');
-            }
-        }
-
-        // Start selective replication
-        async function startSelectiveReplication() {
-            const checkboxes = document.querySelectorAll('.table-select-checkbox:checked');
-            const selectedTables = Array.from(checkboxes).map(cb => cb.value);
-
-            if (selectedTables.length === 0) {
-                alert('Please select at least one table to replicate.');
-                return;
-            }
-
-            if (!confirm(`Replicate ${selectedTables.length} selected tables? This may take some time.`)) {
-                return;
-            }
-
-            const btn = document.getElementById('selectiveBtn');
-            const loading = document.getElementById('selectiveLoading');
-
-            btn.disabled = true;
-            loading.classList.remove('hidden');
-            addLog(`🎯 Starting selective replication for: ${selectedTables.join(', ')}`, 'info');
-
-            try {
-                const response = await fetch('/replicate/tables', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ tables: selectedTables })
-                });
-                const result = await response.json();
-
-                if (result.success) {
-                    addLog(`✅ Selective replication completed!`, 'success');
-                    addLog(`📊 Zoho Export: ${result.zohoExport.successful} successful, ${result.zohoExport.failed} failed`, 'info');
-                    addLog(`💾 Supabase Import: ${result.supabaseImport.totalRecords} records imported`, 'info');
-                    addLog(`⏱️ Duration: ${result.duration} seconds`, 'info');
-                } else {
-                    addLog(`❌ Selective replication failed: ${result.error}`, 'error');
-                }
-            } catch (error) {
-                addLog(`Selective replication error: ${error.message}`, 'error');
-            } finally {
-                btn.disabled = false;
-                loading.classList.add('hidden');
-            }
-        }
-
-        // Discover available Zoho tables
-        async function discoverZohoTables() {
-            const btn = document.getElementById('discoverBtn');
-            const loading = document.getElementById('discoverLoading');
-
-            btn.disabled = true;
-            loading.classList.remove('hidden');
-            addLog('🔍 Discovering available tables from Zoho Analytics...', 'info');
-
-            try {
-                const response = await fetch('/discover-tables');
-                const result = await response.json();
-
-                if (result.success) {
-                    availableTables = result.tables;
-                    addLog(`✅ Discovered ${result.totalTables} tables from Zoho workspace`, 'success');
-                    populateAvailableTablesSection(availableTables);
-                    document.getElementById('availableTablesSection').classList.remove('hidden');
-                } else {
-                    addLog(`❌ Failed to discover tables: ${result.error}`, 'error');
-                }
-            } catch (error) {
-                addLog(`Table discovery error: ${error.message}`, 'error');
-            } finally {
-                btn.disabled = false;
-                loading.classList.add('hidden');
-            }
-        }
-
-        // Populate available tables section
-        function populateAvailableTablesSection(availableTables) {
-            const configuredViewIds = tables.map(t => t.viewId);
-            const newTables = availableTables.filter(table => !configuredViewIds.includes(table.viewId));
-
-            // Update counters
-            document.getElementById('totalTablesCount').textContent = availableTables.length;
-            document.getElementById('configuredTablesCount').textContent = availableTables.length - newTables.length;
-            document.getElementById('newTablesCount').textContent = newTables.length;
-
-            // Populate table selector
-            const selector = document.getElementById('availableTableSelector');
-            selector.innerHTML = '';
-
-            availableTables.forEach(table => {
-                const isConfigured = configuredViewIds.includes(table.viewId);
-                const checkbox = document.createElement('label');
-                checkbox.className = 'table-checkbox';
-                checkbox.style.opacity = isConfigured ? '0.6' : '1';
-                checkbox.innerHTML = `
-                    <input type="checkbox" value="${table.viewId}" ${isConfigured ? 'disabled checked' : ''}>
-                    <span>${table.viewName} ${isConfigured ? '✅' : ''}</span>
-                `;
-                selector.appendChild(checkbox);
-            });
-        }
-
-        // Add selected tables to configuration
-        async function addSelectedTables() {
-            const checkboxes = document.querySelectorAll('#availableTableSelector input[type="checkbox"]:checked:not(:disabled)');
-            const selectedViewIds = Array.from(checkboxes).map(cb => cb.value);
-
-            if (selectedViewIds.length === 0) {
-                alert('Please select at least one new table to add.');
-                return;
-            }
-
-            const selectedTables = availableTables.filter(table => selectedViewIds.includes(table.viewId));
-
-            if (!confirm(`Add ${selectedTables.length} selected tables to configuration?`)) {
-                return;
-            }
-
-            const btn = document.getElementById('addTablesBtn');
-            const loading = document.getElementById('addTablesLoading');
-
-            btn.disabled = true;
-            loading.classList.remove('hidden');
-            addLog(`➕ Adding ${selectedTables.length} tables to configuration...`, 'info');
-
-            try {
-                const response = await fetch('/api/configure-tables', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ selectedTables })
-                });
-                const result = await response.json();
-
-                if (result.success) {
-                    addLog(`✅ Successfully added ${result.addedCount} new tables to configuration`, 'success');
-                    if (result.skippedCount > 0) {
-                        addLog(`ℹ️ Skipped ${result.skippedCount} tables (already configured)`, 'info');
-                    }
-
-                    // Refresh the data
-                    await loadTables();
-                    populateAvailableTablesSection(availableTables);
-                    refreshStatus();
-                } else {
-                    addLog(`❌ Failed to add tables: ${result.error}`, 'error');
-                }
-            } catch (error) {
-                addLog(`Configuration error: ${error.message}`, 'error');
-            } finally {
-                btn.disabled = false;
-                loading.classList.add('hidden');
-            }
-        }
-
-
-        // Select all tables
-        function selectAllTables() {
-            const checkboxes = document.querySelectorAll('.table-select-checkbox');
-            checkboxes.forEach(checkbox => {
-                checkbox.checked = true;
-            });
-            addLog('All tables selected', 'info');
-        }
-
-        // Clear all selections
-        function clearAllSelections() {
-            const checkboxes = document.querySelectorAll('.table-select-checkbox');
-            checkboxes.forEach(checkbox => {
-                checkbox.checked = false;
-            });
-            addLog('All selections cleared', 'info');
-        }
-
-        // Remove selected tables
-        async function removeSelectedTables() {
-            const checkboxes = document.querySelectorAll('.table-select-checkbox:checked');
-            const selectedTables = Array.from(checkboxes).map(cb => ({
-                viewId: cb.dataset.viewId,
-                tableName: cb.value
-            }));
-
-            if (selectedTables.length === 0) {
-                alert('Please select at least one table to remove.');
-                return;
-            }
-
-            if (selectedTables.length === tables.length) {
-                alert('Cannot remove all tables. At least one table must remain configured.');
-                return;
-            }
-
-            if (!confirm(`Remove ${selectedTables.length} selected tables from configuration? This cannot be undone.`)) {
-                return;
-            }
-
-            const btn = document.getElementById('removeSelectedBtn');
-            const loading = document.getElementById('removeLoading');
-
-            btn.disabled = true;
-            loading.classList.remove('hidden');
-            addLog(`🗑️ Removing ${selectedTables.length} selected tables...`, 'info');
-
-            try {
-                // Remove tables one by one
-                let removedCount = 0;
-                for (const table of selectedTables) {
-                    try {
-                        const response = await fetch(`/tables/${table.viewId}`, {
-                            method: 'DELETE'
-                        });
-                        const result = await response.json();
-
-                        if (result.success) {
-                            removedCount++;
-                            addLog(`✅ Removed table: ${table.tableName}`, 'success');
-                        } else {
-                            addLog(`❌ Failed to remove table ${table.tableName}: ${result.error}`, 'error');
-                        }
-                    } catch (error) {
-                        addLog(`❌ Error removing table ${table.tableName}: ${error.message}`, 'error');
-                    }
-                }
-
-                if (removedCount > 0) {
-                    addLog(`✅ Successfully removed ${removedCount} tables`, 'success');
-                    await loadTables(); // Reload the tables
-                    refreshStatus();
-                }
-            } catch (error) {
-                addLog(`Error during bulk removal: ${error.message}`, 'error');
-            } finally {
-                btn.disabled = false;
-                loading.classList.add('hidden');
-            }
-        }
-
-        async function removeTable(viewId, tableName) {
-            if (!confirm(`Are you sure you want to remove "${tableName}" from the replication configuration?\n\nThis will stop replicating this table but will not delete existing data in Supabase.`)) {
-                return;
-            }
-
-            addLog(`🗑️ Removing ${tableName} from configuration...`, 'info');
-
-            try {
-                const response = await fetch(`/api/configure-tables/${viewId}`, {
-                    method: 'DELETE'
-                });
-                const result = await response.json();
-
-                if (result.success) {
-                    addLog(`✅ Successfully removed ${tableName} from configuration`, 'success');
-
-                    // Refresh the data
-                    await loadTables();
-                    refreshStatus();
-                } else {
-                    addLog(`❌ Failed to remove ${tableName}: ${result.error}`, 'error');
-                }
-            } catch (error) {
-                addLog(`Error removing ${tableName}: ${error.message}`, 'error');
-            }
-        }
-
-
-        // Scheduler Management Functions
-
-        async function refreshSchedulerStatus() {
-            try {
-                const response = await fetch('/scheduler/status');
-                const result = await response.json();
-
-                if (result.success) {
-                    updateSchedulerDisplay(result.scheduler);
-                    addLog('Scheduler status refreshed', 'info');
-                } else {
-                    addLog(`Failed to refresh scheduler status: ${result.error}`, 'error');
-                }
-            } catch (error) {
-                addLog(`Error refreshing scheduler status: ${error.message}`, 'error');
-            }
-        }
-
-        function updateSchedulerDisplay(scheduler) {
-            // Update status indicators
-            document.getElementById('schedulerStatus').textContent = scheduler.isRunning ? '✅ Running' : '⏸️ Stopped';
-            document.getElementById('scheduleTime').textContent = `${scheduler.scheduleTime} (${scheduler.timezone})`;
-
-            // Update next run
-            if (scheduler.nextRun) {
-                const nextRun = new Date(scheduler.nextRun);
-                document.getElementById('nextRun').textContent = nextRun.toLocaleString();
-            } else {
-                document.getElementById('nextRun').textContent = scheduler.isRunning ? 'Calculating...' : 'Not scheduled';
-            }
-
-            // Update last run
-            if (scheduler.lastRun) {
-                const lastRun = new Date(scheduler.lastRun);
-                document.getElementById('lastRun').textContent = lastRun.toLocaleString();
-            } else {
-                document.getElementById('lastRun').textContent = 'Never';
-            }
-
-            // Update button states
-            const startBtn = document.getElementById('startSchedulerBtn');
-            const stopBtn = document.getElementById('stopSchedulerBtn');
-
-            if (scheduler.isRunning) {
-                startBtn.style.display = 'none';
-                stopBtn.style.display = '';
-            } else {
-                startBtn.style.display = '';
-                stopBtn.style.display = 'none';
-            }
-
-            // Update last run result
-            updateLastRunResult(scheduler.lastRunResult);
-        }
-
-        function updateLastRunResult(lastRunResult) {
-            const resultDiv = document.getElementById('lastRunResult');
-            const detailsDiv = document.getElementById('lastRunDetails');
-
-            if (lastRunResult) {
-                resultDiv.classList.remove('hidden');
-
-                const success = lastRunResult.success;
-                resultDiv.style.backgroundColor = success ? '#d4edda' : '#f8d7da';
-                resultDiv.style.borderLeft = success ? '4px solid #28a745' : '4px solid #dc3545';
-
-                let detailsHTML = `
-                    <p><strong>Status:</strong> <span style="color: ${success ? '#28a745' : '#dc3545'}">${success ? '✅ Success' : '❌ Failed'}</span></p>
-                    <p><strong>Time:</strong> ${new Date(lastRunResult.timestamp).toLocaleString()}</p>
-                `;
-
-                if (success) {
-                    detailsHTML += `
-                        <p><strong>Zoho Exported:</strong> ${lastRunResult.zohoExported} tables</p>
-                        <p><strong>Supabase Imported:</strong> ${lastRunResult.supabaseImported} tables</p>
-                        <p><strong>Duration:</strong> ${Math.round(lastRunResult.duration / 1000)} seconds</p>
-                    `;
-                } else {
-                    detailsHTML += `<p><strong>Error:</strong> ${lastRunResult.error}</p>`;
-                }
-
-                if (lastRunResult.manual) {
-                    detailsHTML += `<p><strong>Trigger:</strong> Manual</p>`;
-                }
-
-                detailsDiv.innerHTML = detailsHTML;
-            } else {
-                resultDiv.classList.add('hidden');
-            }
-        }
-
-        async function startScheduler() {
-            const btn = document.getElementById('startSchedulerBtn');
-            const loading = document.getElementById('startSchedulerLoading');
-
-            btn.disabled = true;
-            loading.classList.remove('hidden');
-            addLog('Starting scheduler...', 'info');
-
-            try {
-                const response = await fetch('/scheduler/start', { method: 'POST' });
-                const result = await response.json();
-
-                if (result.success) {
-                    addLog('✅ Scheduler started successfully', 'success');
-                    updateSchedulerDisplay(result.scheduler);
-                } else {
-                    addLog(`❌ Failed to start scheduler: ${result.error}`, 'error');
-                }
-            } catch (error) {
-                addLog(`Error starting scheduler: ${error.message}`, 'error');
-            } finally {
-                btn.disabled = false;
-                loading.classList.add('hidden');
-            }
-        }
-
-        async function stopScheduler() {
-            const btn = document.getElementById('stopSchedulerBtn');
-            const loading = document.getElementById('stopSchedulerLoading');
-
-            btn.disabled = true;
-            loading.classList.remove('hidden');
-            addLog('Stopping scheduler...', 'info');
-
-            try {
-                const response = await fetch('/scheduler/stop', { method: 'POST' });
-                const result = await response.json();
-
-                if (result.success) {
-                    addLog('✅ Scheduler stopped successfully', 'success');
-                    updateSchedulerDisplay(result.scheduler);
-                } else {
-                    addLog(`❌ Failed to stop scheduler: ${result.error}`, 'error');
-                }
-            } catch (error) {
-                addLog(`Error stopping scheduler: ${error.message}`, 'error');
-            } finally {
-                btn.disabled = false;
-                loading.classList.add('hidden');
-            }
-        }
-
-        async function triggerManualReplication() {
-            if (!confirm('This will start a manual replication of all configured tables. This may take some time. Continue?')) {
-                return;
-            }
-
-            const btn = document.getElementById('triggerReplicationBtn');
-            const loading = document.getElementById('triggerLoading');
-
-            btn.disabled = true;
-            loading.classList.remove('hidden');
-            addLog('🚀 Triggering manual replication...', 'info');
-
-            try {
-                const response = await fetch('/scheduler/trigger', { method: 'POST' });
-                const result = await response.json();
-
-                if (result.success) {
-                    addLog('✅ Manual replication completed successfully', 'success');
-                    addLog(`📊 Exported: ${result.replication.zohoExported} tables, Imported: ${result.replication.supabaseImported} tables`, 'info');
-                    addLog(`⏱️ Duration: ${Math.round(result.replication.duration / 1000)} seconds`, 'info');
-                } else {
-                    addLog(`❌ Manual replication failed: ${result.error}`, 'error');
-                }
-
-                // Refresh scheduler status to show updated last run info
-                refreshSchedulerStatus();
-            } catch (error) {
-                addLog(`Manual replication error: ${error.message}`, 'error');
-            } finally {
-                btn.disabled = false;
-                loading.classList.add('hidden');
-            }
-        }
     </script>
 </body>
 </html>
