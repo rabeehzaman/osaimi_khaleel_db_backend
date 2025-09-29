@@ -585,6 +585,22 @@
                 </div>
             </div>
 
+            <!-- Table Management Section -->
+            <div class="action-bar" style="background: #e8f4f8; border-radius: 8px; padding: 15px; margin-bottom: 10px;">
+                <div style="display: flex; align-items: center; gap: 15px; flex-wrap: wrap;">
+                    <span style="font-weight: 600;">📊 Table Management:</span>
+                    <button class="btn secondary" onclick="showAvailableTables()" style="padding: 5px 15px; font-size: 14px;">
+                        <span>➕</span> Add Tables to Schedule
+                    </button>
+                    <button class="btn secondary" onclick="showConfiguredTables()" style="padding: 5px 15px; font-size: 14px;">
+                        <span>📋</span> Manage Scheduled Tables
+                    </button>
+                    <span id="tableManagementStatus" style="font-size: 12px; color: #6c757d; margin-left: auto;">
+                        <span id="configuredTablesCount">0</span> tables scheduled
+                    </span>
+                </div>
+            </div>
+
             <!-- Simple Action Buttons -->
             <div class="action-bar">
                 <button class="btn primary" onclick="replicateAll()" id="replicateAllBtn">
@@ -1158,7 +1174,250 @@
             });
 
             dashboard.log('✅ Dashboard initialized', 'success');
+
+            // Load configured tables count
+            loadConfiguredTablesCount();
         });
+
+        // Table Management Functions
+        async function loadConfiguredTablesCount() {
+            try {
+                const response = await fetch('/api/tables/configured');
+                const data = await response.json();
+                if (data.success) {
+                    document.getElementById('configuredTablesCount').textContent = data.total;
+                }
+            } catch (error) {
+                console.error('Failed to load configured tables count:', error);
+            }
+        }
+
+        async function showAvailableTables() {
+            try {
+                dashboard.log('Fetching available Zoho tables...');
+                const response = await fetch('/api/zoho-tables/available');
+                const data = await response.json();
+
+                if (data.success) {
+                    showTableManagementModal(data.tables, 'available');
+                } else {
+                    dashboard.log(`Failed to fetch tables: ${data.error}`, 'error');
+                }
+            } catch (error) {
+                dashboard.log(`Error fetching tables: ${error.message}`, 'error');
+            }
+        }
+
+        async function showConfiguredTables() {
+            try {
+                dashboard.log('Fetching configured tables...');
+                const response = await fetch('/api/tables/configured');
+                const data = await response.json();
+
+                if (data.success) {
+                    showTableManagementModal(data.tables, 'configured');
+                } else {
+                    dashboard.log(`Failed to fetch configured tables: ${data.error}`, 'error');
+                }
+            } catch (error) {
+                dashboard.log(`Error fetching configured tables: ${error.message}`, 'error');
+            }
+        }
+
+        function showTableManagementModal(tables, mode) {
+            // Remove existing modal if any
+            const existingModal = document.getElementById('tableManagementModal');
+            if (existingModal) {
+                existingModal.remove();
+            }
+
+            // Create modal
+            const modal = document.createElement('div');
+            modal.id = 'tableManagementModal';
+            modal.style.cssText = `
+                position: fixed;
+                top: 0;
+                left: 0;
+                width: 100%;
+                height: 100%;
+                background: rgba(0,0,0,0.5);
+                display: flex;
+                justify-content: center;
+                align-items: center;
+                z-index: 1000;
+            `;
+
+            const modalContent = document.createElement('div');
+            modalContent.style.cssText = `
+                background: white;
+                border-radius: 8px;
+                width: 90%;
+                max-width: 800px;
+                max-height: 80vh;
+                overflow: hidden;
+                display: flex;
+                flex-direction: column;
+            `;
+
+            const header = document.createElement('div');
+            header.style.cssText = `
+                padding: 20px;
+                border-bottom: 1px solid #e0e0e0;
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+            `;
+
+            const title = document.createElement('h2');
+            title.textContent = mode === 'available' ? 'Add Tables to Schedule' : 'Manage Scheduled Tables';
+            title.style.margin = '0';
+            header.appendChild(title);
+
+            const closeBtn = document.createElement('button');
+            closeBtn.textContent = '✕';
+            closeBtn.style.cssText = `
+                background: none;
+                border: none;
+                font-size: 24px;
+                cursor: pointer;
+                color: #666;
+            `;
+            closeBtn.onclick = () => modal.remove();
+            header.appendChild(closeBtn);
+
+            const body = document.createElement('div');
+            body.style.cssText = `
+                padding: 20px;
+                overflow-y: auto;
+                flex: 1;
+            `;
+
+            if (tables.length === 0) {
+                body.innerHTML = `<p style="text-align: center; color: #666;">
+                    ${mode === 'available' ? 'No additional tables available to add.' : 'No tables configured yet.'}
+                </p>`;
+            } else {
+                const tableList = document.createElement('div');
+                tableList.style.cssText = 'display: flex; flex-direction: column; gap: 10px;';
+
+                tables.forEach(table => {
+                    const tableItem = document.createElement('div');
+                    tableItem.style.cssText = `
+                        display: flex;
+                        justify-content: space-between;
+                        align-items: center;
+                        padding: 12px;
+                        border: 1px solid #e0e0e0;
+                        border-radius: 4px;
+                        background: #f8f9fa;
+                    `;
+
+                    const tableInfo = document.createElement('div');
+                    tableInfo.innerHTML = `
+                        <strong>${table.tableName}</strong>
+                        <br>
+                        <small style="color: #666;">${table.description || 'No description'}</small>
+                        <br>
+                        <small style="color: #999;">ID: ${table.viewId}</small>
+                    `;
+
+                    const actionBtn = document.createElement('button');
+                    if (mode === 'available') {
+                        actionBtn.textContent = 'Add to Schedule';
+                        actionBtn.className = 'btn primary';
+                        actionBtn.style.cssText = 'padding: 5px 15px; font-size: 14px;';
+                        actionBtn.onclick = () => addTableToSchedule(table, modal);
+                    } else {
+                        actionBtn.textContent = 'Remove';
+                        actionBtn.className = 'btn secondary';
+                        actionBtn.style.cssText = 'padding: 5px 15px; font-size: 14px; background: #dc3545; color: white;';
+                        actionBtn.onclick = () => removeTableFromSchedule(table, modal);
+                    }
+
+                    tableItem.appendChild(tableInfo);
+                    tableItem.appendChild(actionBtn);
+                    tableList.appendChild(tableItem);
+                });
+
+                body.appendChild(tableList);
+            }
+
+            modalContent.appendChild(header);
+            modalContent.appendChild(body);
+            modal.appendChild(modalContent);
+            document.body.appendChild(modal);
+
+            // Close modal on outside click
+            modal.onclick = (e) => {
+                if (e.target === modal) {
+                    modal.remove();
+                }
+            };
+        }
+
+        async function addTableToSchedule(table, modal) {
+            try {
+                dashboard.log(`Adding ${table.tableName} to schedule...`);
+
+                const response = await fetch('/api/tables/add', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        viewId: table.viewId,
+                        tableName: table.tableName,
+                        description: table.description
+                    })
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    dashboard.log(`✅ ${table.tableName} added to schedule`, 'success');
+                    modal.remove();
+                    dashboard.loadTables();
+                    loadConfiguredTablesCount();
+                } else {
+                    dashboard.log(`Failed to add table: ${data.error}`, 'error');
+                }
+            } catch (error) {
+                dashboard.log(`Error adding table: ${error.message}`, 'error');
+            }
+        }
+
+        async function removeTableFromSchedule(table, modal) {
+            if (!confirm(`Are you sure you want to remove ${table.tableName} from the schedule?`)) {
+                return;
+            }
+
+            try {
+                dashboard.log(`Removing ${table.tableName} from schedule...`);
+
+                const response = await fetch('/api/tables/remove', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        viewId: table.viewId
+                    })
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    dashboard.log(`✅ ${table.tableName} removed from schedule`, 'success');
+                    modal.remove();
+                    dashboard.loadTables();
+                    loadConfiguredTablesCount();
+                } else {
+                    dashboard.log(`Failed to remove table: ${data.error}`, 'error');
+                }
+            } catch (error) {
+                dashboard.log(`Error removing table: ${error.message}`, 'error');
+            }
+        }
     </script>
 </body>
 </html>

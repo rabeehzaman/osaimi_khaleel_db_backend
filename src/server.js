@@ -4,6 +4,9 @@ const cors = require('cors');
 const path = require('path');
 const BulkReplicator = require('./bulk-replicator');
 const { BULK_EXPORT_TABLES } = require('../config/tables');
+const ZohoTablesFetcher = require('./fetch-zoho-tables');
+const fs = require('fs').promises;
+const fsSync = require('fs');
 
 // Runtime table configuration (starts with config file, can be updated)
 let runtimeTableConfig = [...BULK_EXPORT_TABLES];
@@ -816,6 +819,249 @@ app.get('/debug/test-token', async (req, res) => {
       success: false,
       error: error.message,
       stack: error.stack,
+      timestamp: new Date().toISOString()
+    });
+  }
+});
+
+// Table Management Endpoints
+
+// Get available Zoho Analytics tables (not yet configured)
+app.get('/api/zoho-tables/available', async (req, res) => {
+  if (!replicator || !replicator.zohoClient) {
+    return res.status(500).json({
+      success: false,
+      error: 'Zoho client not initialized'
+    });
+  }
+
+  try {
+    const tablesFetcher = new ZohoTablesFetcher(replicator.zohoClient);
+    const result = await tablesFetcher.fetchAvailableTables();
+
+    if (result.success) {
+      // Filter out tables that are already configured
+      const configuredViewIds = runtimeTableConfig.map(t => t.viewId);
+      const availableTables = result.tables.filter(t => !configuredViewIds.includes(t.viewId));
+
+      res.json({
+        success: true,
+        tables: availableTables,
+        total: availableTables.length,
+        configured: runtimeTableConfig.length,
+        timestamp: new Date().toISOString()
+      });
+    } else {
+      res.status(500).json({
+        success: false,
+        error: result.error,
+        timestamp: new Date().toISOString()
+      });
+    }
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      error: error.message,
+      timestamp: new Date().toISOString()
+    });
+  }
+});
+
+// Get configured tables
+app.get('/api/tables/configured', (req, res) => {
+  res.json({
+    success: true,
+    tables: runtimeTableConfig,
+    total: runtimeTableConfig.length,
+    timestamp: new Date().toISOString()
+  });
+});
+
+// Add table to schedule
+app.post('/api/tables/add', async (req, res) => {
+  const { viewId, tableName, description } = req.body;
+
+  if (!viewId || !tableName) {
+    return res.status(400).json({
+      success: false,
+      error: 'viewId and tableName are required'
+    });
+  }
+
+  // Check if table already exists
+  const exists = runtimeTableConfig.some(t => t.viewId === viewId);
+  if (exists) {
+    return res.status(400).json({
+      success: false,
+      error: 'Table is already configured'
+    });
+  }
+
+  try {
+    // Add to runtime config
+    const newTable = {
+      viewId,
+      tableName,
+      description: description || `Table ${tableName}`,
+      estimatedRows: 1000,
+      priority: 'normal'
+    };
+
+    runtimeTableConfig.push(newTable);
+    BULK_EXPORT_TABLES.push(newTable);
+
+    // Update the config file
+    const configPath = path.join(__dirname, '../config/tables.js');
+    const configContent = `// Zoho Analytics table configurations for bulk export
+const BULK_EXPORT_TABLES = ${JSON.stringify(runtimeTableConfig, null, 2)};
+
+// Export configuration
+const EXPORT_CONFIG = {
+  defaultFormat: 'csv',
+  maxRetries: 3,
+  retryDelay: 5000,
+  batchSize: 1,
+  timeout: 300000
+};
+
+module.exports = {
+  BULK_EXPORT_TABLES,
+  EXPORT_CONFIG
+};`;
+
+    await fs.writeFile(configPath, configContent);
+
+    console.log(`✅ Added table to configuration: ${tableName} (${viewId})`);
+
+    res.json({
+      success: true,
+      message: `Table ${tableName} added to schedule`,
+      table: newTable,
+      totalConfigured: runtimeTableConfig.length,
+      timestamp: new Date().toISOString()
+    });
+
+    // Restart scheduler if running
+    if (replicator && replicator.isSchedulerRunning) {
+      replicator.stopScheduler();
+      replicator.startScheduler();
+    }
+
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      error: error.message,
+      timestamp: new Date().toISOString()
+    });
+  }
+});
+
+// Remove table from schedule
+app.post('/api/tables/remove', async (req, res) => {
+  const { viewId } = req.body;
+
+  if (!viewId) {
+    return res.status(400).json({
+      success: false,
+      error: 'viewId is required'
+    });
+  }
+
+  // Find table
+  const tableIndex = runtimeTableConfig.findIndex(t => t.viewId === viewId);
+  if (tableIndex === -1) {
+    return res.status(404).json({
+      success: false,
+      error: 'Table not found in configuration'
+    });
+  }
+
+  // Don't allow removing the last table
+  if (runtimeTableConfig.length <= 1) {
+    return res.status(400).json({
+      success: false,
+      error: 'Cannot remove the last table. At least one table must remain configured.'
+    });
+  }
+
+  try {
+    const removedTable = runtimeTableConfig[tableIndex];
+
+    // Remove from runtime config
+    runtimeTableConfig.splice(tableIndex, 1);
+
+    // Remove from BULK_EXPORT_TABLES
+    const bulkIndex = BULK_EXPORT_TABLES.findIndex(t => t.viewId === viewId);
+    if (bulkIndex !== -1) {
+      BULK_EXPORT_TABLES.splice(bulkIndex, 1);
+    }
+
+    // Update the config file
+    const configPath = path.join(__dirname, '../config/tables.js');
+    const configContent = `// Zoho Analytics table configurations for bulk export
+const BULK_EXPORT_TABLES = ${JSON.stringify(runtimeTableConfig, null, 2)};
+
+// Export configuration
+const EXPORT_CONFIG = {
+  defaultFormat: 'csv',
+  maxRetries: 3,
+  retryDelay: 5000,
+  batchSize: 1,
+  timeout: 300000
+};
+
+module.exports = {
+  BULK_EXPORT_TABLES,
+  EXPORT_CONFIG
+};`;
+
+    await fs.writeFile(configPath, configContent);
+
+    console.log(`✅ Removed table from configuration: ${removedTable.tableName}`);
+
+    res.json({
+      success: true,
+      message: `Table ${removedTable.tableName} removed from schedule`,
+      removedTable,
+      totalConfigured: runtimeTableConfig.length,
+      timestamp: new Date().toISOString()
+    });
+
+    // Restart scheduler if running
+    if (replicator && replicator.isSchedulerRunning) {
+      replicator.stopScheduler();
+      replicator.startScheduler();
+    }
+
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      error: error.message,
+      timestamp: new Date().toISOString()
+    });
+  }
+});
+
+// Get table details from Zoho
+app.get('/api/zoho-tables/details/:viewId', async (req, res) => {
+  const { viewId } = req.params;
+
+  if (!replicator || !replicator.zohoClient) {
+    return res.status(500).json({
+      success: false,
+      error: 'Zoho client not initialized'
+    });
+  }
+
+  try {
+    const tablesFetcher = new ZohoTablesFetcher(replicator.zohoClient);
+    const result = await tablesFetcher.fetchTableDetails(viewId);
+
+    res.json(result);
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      error: error.message,
       timestamp: new Date().toISOString()
     });
   }
