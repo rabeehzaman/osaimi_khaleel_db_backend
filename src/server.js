@@ -5,11 +5,15 @@ const path = require('path');
 const BulkReplicator = require('./bulk-replicator');
 const { BULK_EXPORT_TABLES } = require('../config/tables');
 const ZohoTablesFetcher = require('./fetch-zoho-tables');
+const DatabaseConfigManager = require('./database-config-manager');
 const fs = require('fs').promises;
 const fsSync = require('fs');
 
-// Runtime table configuration (starts with config file, can be updated)
-let runtimeTableConfig = [...BULK_EXPORT_TABLES];
+// Initialize database config manager
+const configManager = new DatabaseConfigManager();
+
+// Runtime table configuration (will be loaded from database)
+let runtimeTableConfig = [];
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -24,11 +28,29 @@ app.use(express.static(path.join(__dirname, '../public')));
 
 // Global replicator instance
 let replicator;
-try {
-  replicator = new BulkReplicator();
-} catch (error) {
-  console.error('❌ Failed to initialize BulkReplicator:', error.message);
+
+// Initialize configuration and replicator
+async function initializeServices() {
+  try {
+    // Load configurations from database
+    await configManager.initialize();
+    runtimeTableConfig = await configManager.getAllConfigurations();
+    console.log(`✅ Loaded ${runtimeTableConfig.length} table configurations from database`);
+
+    // Initialize replicator
+    replicator = new BulkReplicator();
+    console.log('✅ BulkReplicator initialized successfully');
+  } catch (error) {
+    console.error('❌ Failed to initialize services:', error.message);
+  }
 }
+
+// Initialize services on startup
+initializeServices().catch(error => {
+  console.error('⚠️  Warning: Failed to initialize services:', error.message);
+  // Continue running with fallback configuration
+  runtimeTableConfig = [...BULK_EXPORT_TABLES];
+});
 
 // Routes
 app.get('/', (req, res) => {
@@ -49,18 +71,28 @@ app.get('/', (req, res) => {
 });
 
 // Get all configured tables
-app.get('/tables', (req, res) => {
-  res.json({
-    success: true,
-    total: runtimeTableConfig.length,
-    tables: runtimeTableConfig.map(table => ({
-      tableName: table.tableName,
-      viewId: table.viewId,
-      description: table.description,
-      estimatedRows: table.estimatedRows,
-      priority: table.priority
-    }))
-  });
+app.get('/tables', async (req, res) => {
+  try {
+    // Refresh from database
+    runtimeTableConfig = await configManager.getAllConfigurations();
+
+    res.json({
+      success: true,
+      total: runtimeTableConfig.length,
+      tables: runtimeTableConfig.map(table => ({
+        tableName: table.tableName,
+        viewId: table.viewId,
+        description: table.description,
+        estimatedRows: table.estimatedRows,
+        priority: table.priority
+      }))
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
 });
 
 // Test connections
@@ -317,7 +349,8 @@ app.post('/api/configure-tables', async (req, res) => {
 
     console.log(`📝 Configuring ${selectedTables.length} tables for replication...`);
 
-    // Get currently configured tables from runtime config
+    // Get currently configured tables from database
+    runtimeTableConfig = await configManager.getAllConfigurations();
     const currentViewIds = runtimeTableConfig.map(table => table.viewId);
 
     // Filter out tables that are already configured
@@ -332,23 +365,27 @@ app.post('/api/configure-tables', async (req, res) => {
       });
     }
 
-    // Add new tables to the runtime configuration
-    runtimeTableConfig.push(...newTables);
+    // Add new tables to database
+    const addedTables = await configManager.bulkAddConfigurations(newTables);
+
+    // Update runtime configuration
+    runtimeTableConfig = await configManager.getAllConfigurations();
 
     // Also update the original BULK_EXPORT_TABLES array so the replicator can see the changes
-    BULK_EXPORT_TABLES.push(...newTables);
+    BULK_EXPORT_TABLES.length = 0;
+    BULK_EXPORT_TABLES.push(...runtimeTableConfig);
 
     res.json({
       success: true,
-      message: `Successfully configured ${newTables.length} new tables`,
-      addedCount: newTables.length,
+      message: `Successfully configured ${addedTables.length} new tables`,
+      addedCount: addedTables.length,
       skippedCount: selectedTables.length - newTables.length,
       totalConfigured: runtimeTableConfig.length,
-      addedTables: newTables.map(table => table.tableName),
+      addedTables: addedTables.map(table => table.tableName),
       timestamp: new Date().toISOString()
     });
 
-    console.log(`✅ Runtime configuration updated: ${newTables.length} new tables added`);
+    console.log(`✅ Database configuration updated: ${addedTables.length} new tables added`);
   } catch (error) {
     console.error('❌ Failed to configure tables:', error);
     res.status(500).json({
@@ -371,9 +408,9 @@ app.delete('/api/configure-tables/:viewId', async (req, res) => {
       });
     }
 
-    // Find the table to remove
+    // Get current configurations from database
+    runtimeTableConfig = await configManager.getAllConfigurations();
     const tableIndex = runtimeTableConfig.findIndex(table => table.viewId === viewId);
-    const bulkTableIndex = BULK_EXPORT_TABLES.findIndex(table => table.viewId === viewId);
 
     if (tableIndex === -1) {
       return res.status(404).json({
@@ -383,7 +420,8 @@ app.delete('/api/configure-tables/:viewId', async (req, res) => {
     }
 
     // Don't allow removal of the last table
-    if (runtimeTableConfig.length <= 1) {
+    const configCount = await configManager.getConfigurationCount();
+    if (configCount <= 1) {
       return res.status(400).json({
         success: false,
         error: 'Cannot remove the last configured table. At least one table must remain configured.'
@@ -392,11 +430,18 @@ app.delete('/api/configure-tables/:viewId', async (req, res) => {
 
     const removedTable = runtimeTableConfig[tableIndex];
 
-    // Remove from both configurations
-    runtimeTableConfig.splice(tableIndex, 1);
-    if (bulkTableIndex !== -1) {
-      BULK_EXPORT_TABLES.splice(bulkTableIndex, 1);
+    // Remove from database
+    const removed = await configManager.removeConfiguration(viewId);
+    if (!removed) {
+      throw new Error('Failed to remove table from database');
     }
+
+    // Update runtime configuration
+    runtimeTableConfig = await configManager.getAllConfigurations();
+
+    // Update BULK_EXPORT_TABLES for backward compatibility
+    BULK_EXPORT_TABLES.length = 0;
+    BULK_EXPORT_TABLES.push(...runtimeTableConfig);
 
     console.log(`✅ Table removed from configuration: ${removedTable.tableName}`);
 
@@ -434,8 +479,12 @@ app.post('/api/remove-tables', async (req, res) => {
       });
     }
 
+    // Get current configurations
+    runtimeTableConfig = await configManager.getAllConfigurations();
+
     // Don't allow removing all tables
-    if (viewIds.length >= runtimeTableConfig.length) {
+    const configCount = await configManager.getConfigurationCount();
+    if (viewIds.length >= configCount) {
       return res.status(400).json({
         success: false,
         error: 'Cannot remove all tables. At least one table must remain configured.'
@@ -448,7 +497,6 @@ app.post('/api/remove-tables', async (req, res) => {
     // Process each viewId
     for (const viewId of viewIds) {
       const tableIndex = runtimeTableConfig.findIndex(table => table.viewId === viewId);
-      const bulkTableIndex = BULK_EXPORT_TABLES.findIndex(table => table.viewId === viewId);
 
       if (tableIndex !== -1) {
         const removedTable = runtimeTableConfig[tableIndex];
@@ -457,16 +505,23 @@ app.post('/api/remove-tables', async (req, res) => {
           viewId: removedTable.viewId,
           description: removedTable.description
         });
-
-        // Remove from both configurations
-        runtimeTableConfig.splice(tableIndex, 1);
-        if (bulkTableIndex !== -1) {
-          BULK_EXPORT_TABLES.splice(bulkTableIndex, 1);
-        }
       } else {
         notFoundTables.push(viewId);
       }
     }
+
+    // Remove from database
+    if (removedTables.length > 0) {
+      const removedViewIds = removedTables.map(t => t.viewId);
+      await configManager.bulkRemoveConfigurations(removedViewIds);
+    }
+
+    // Update runtime configuration
+    runtimeTableConfig = await configManager.getAllConfigurations();
+
+    // Update BULK_EXPORT_TABLES for backward compatibility
+    BULK_EXPORT_TABLES.length = 0;
+    BULK_EXPORT_TABLES.push(...runtimeTableConfig);
 
     console.log(`✅ Removed ${removedTables.length} tables from configuration`);
 
@@ -888,8 +943,8 @@ app.post('/api/tables/add', async (req, res) => {
     });
   }
 
-  // Check if table already exists
-  const exists = runtimeTableConfig.some(t => t.viewId === viewId);
+  // Check if table already exists in database
+  const exists = await configManager.isTableConfigured(viewId);
   if (exists) {
     return res.status(400).json({
       success: false,
@@ -898,7 +953,7 @@ app.post('/api/tables/add', async (req, res) => {
   }
 
   try {
-    // Add to runtime config
+    // Add to database
     const newTable = {
       viewId,
       tableName,
@@ -907,36 +962,24 @@ app.post('/api/tables/add', async (req, res) => {
       priority: 'normal'
     };
 
-    runtimeTableConfig.push(newTable);
-    BULK_EXPORT_TABLES.push(newTable);
+    const addedTable = await configManager.addConfiguration(newTable);
+    if (!addedTable) {
+      throw new Error('Failed to add table to database');
+    }
 
-    // Update the config file
-    const configPath = path.join(__dirname, '../config/tables.js');
-    const configContent = `// Zoho Analytics table configurations for bulk export
-const BULK_EXPORT_TABLES = ${JSON.stringify(runtimeTableConfig, null, 2)};
+    // Update runtime configuration
+    runtimeTableConfig = await configManager.getAllConfigurations();
 
-// Export configuration
-const EXPORT_CONFIG = {
-  defaultFormat: 'csv',
-  maxRetries: 3,
-  retryDelay: 5000,
-  batchSize: 1,
-  timeout: 300000
-};
-
-module.exports = {
-  BULK_EXPORT_TABLES,
-  EXPORT_CONFIG
-};`;
-
-    await fs.writeFile(configPath, configContent);
+    // Update BULK_EXPORT_TABLES for backward compatibility
+    BULK_EXPORT_TABLES.length = 0;
+    BULK_EXPORT_TABLES.push(...runtimeTableConfig);
 
     console.log(`✅ Added table to configuration: ${tableName} (${viewId})`);
 
     res.json({
       success: true,
       message: `Table ${tableName} added to schedule`,
-      table: newTable,
+      table: addedTable,
       totalConfigured: runtimeTableConfig.length,
       timestamp: new Date().toISOString()
     });
@@ -967,6 +1010,9 @@ app.post('/api/tables/remove', async (req, res) => {
     });
   }
 
+  // Get current configurations from database
+  runtimeTableConfig = await configManager.getAllConfigurations();
+
   // Find table
   const tableIndex = runtimeTableConfig.findIndex(t => t.viewId === viewId);
   if (tableIndex === -1) {
@@ -977,7 +1023,8 @@ app.post('/api/tables/remove', async (req, res) => {
   }
 
   // Don't allow removing the last table
-  if (runtimeTableConfig.length <= 1) {
+  const configCount = await configManager.getConfigurationCount();
+  if (configCount <= 1) {
     return res.status(400).json({
       success: false,
       error: 'Cannot remove the last table. At least one table must remain configured.'
@@ -987,35 +1034,18 @@ app.post('/api/tables/remove', async (req, res) => {
   try {
     const removedTable = runtimeTableConfig[tableIndex];
 
-    // Remove from runtime config
-    runtimeTableConfig.splice(tableIndex, 1);
-
-    // Remove from BULK_EXPORT_TABLES
-    const bulkIndex = BULK_EXPORT_TABLES.findIndex(t => t.viewId === viewId);
-    if (bulkIndex !== -1) {
-      BULK_EXPORT_TABLES.splice(bulkIndex, 1);
+    // Remove from database
+    const removed = await configManager.removeConfiguration(viewId);
+    if (!removed) {
+      throw new Error('Failed to remove table from database');
     }
 
-    // Update the config file
-    const configPath = path.join(__dirname, '../config/tables.js');
-    const configContent = `// Zoho Analytics table configurations for bulk export
-const BULK_EXPORT_TABLES = ${JSON.stringify(runtimeTableConfig, null, 2)};
+    // Update runtime configuration
+    runtimeTableConfig = await configManager.getAllConfigurations();
 
-// Export configuration
-const EXPORT_CONFIG = {
-  defaultFormat: 'csv',
-  maxRetries: 3,
-  retryDelay: 5000,
-  batchSize: 1,
-  timeout: 300000
-};
-
-module.exports = {
-  BULK_EXPORT_TABLES,
-  EXPORT_CONFIG
-};`;
-
-    await fs.writeFile(configPath, configContent);
+    // Update BULK_EXPORT_TABLES for backward compatibility
+    BULK_EXPORT_TABLES.length = 0;
+    BULK_EXPORT_TABLES.push(...runtimeTableConfig);
 
     console.log(`✅ Removed table from configuration: ${removedTable.tableName}`);
 

@@ -3,10 +3,14 @@ const cron = require('node-cron');
 const ZohoBulkClient = require('./zoho-bulk-client');
 const SupabaseBulkClient = require('./supabase-bulk-client');
 const ZohoBooksClient = require('./zoho-books-client');
+const DatabaseConfigManager = require('./database-config-manager');
 const { BULK_EXPORT_TABLES, EXPORT_CONFIG } = require('../config/tables');
 
 class BulkReplicator {
   constructor() {
+    // Initialize database config manager
+    this.configManager = new DatabaseConfigManager();
+
     // Initialize Zoho client with direct credentials or credential server
     const zohoConfig = {};
 
@@ -109,10 +113,14 @@ class BulkReplicator {
   async replicateAllTables() {
     try {
       await this.validateConfiguration();
-      
+
+      // Load configurations from database
+      await this.configManager.initialize();
+      const tablesToReplicate = await this.configManager.getAllConfigurations();
+
       console.log('🚀 Starting full data replication from Zoho Analytics to Supabase');
-      console.log(`📊 Tables to replicate: ${BULK_EXPORT_TABLES.length}`);
-      
+      console.log(`📊 Tables to replicate: ${tablesToReplicate.length}`);
+
       const startTime = new Date();
       const results = {
         zohoExport: null,
@@ -124,7 +132,7 @@ class BulkReplicator {
       // Step 1: Export all data from Zoho Analytics
       console.log('\n📥 Step 1: Exporting data from Zoho Analytics...');
       results.zohoExport = await this.zohoClient.batchExport(
-        BULK_EXPORT_TABLES,
+        tablesToReplicate,
         './exports',
         EXPORT_CONFIG.batchSize
       );
@@ -176,8 +184,12 @@ class BulkReplicator {
   async replicateSpecificTables(tableNames) {
     try {
       await this.validateConfiguration();
-      
-      const tablesToReplicate = BULK_EXPORT_TABLES.filter(table => 
+
+      // Load configurations from database
+      await this.configManager.initialize();
+      const allTables = await this.configManager.getAllConfigurations();
+
+      const tablesToReplicate = allTables.filter(table =>
         tableNames.includes(table.tableName)
       );
 
@@ -186,18 +198,54 @@ class BulkReplicator {
       }
 
       console.log(`🎯 Replicating specific tables: ${tablesToReplicate.map(t => t.tableName).join(', ')}`);
-      
-      // Use the same process as full replication but with filtered tables
-      const originalTables = [...BULK_EXPORT_TABLES];
-      BULK_EXPORT_TABLES.length = 0;
-      BULK_EXPORT_TABLES.push(...tablesToReplicate);
-      
-      const results = await this.replicateAllTables();
-      
-      // Restore original table list
-      BULK_EXPORT_TABLES.length = 0;
-      BULK_EXPORT_TABLES.push(...originalTables);
-      
+
+      // Export specific tables from Zoho
+      const startTime = new Date();
+      const results = {
+        zohoExport: null,
+        supabaseImport: null,
+        totalDuration: 0,
+        success: false
+      };
+
+      // Step 1: Export data from Zoho Analytics
+      console.log('\n📥 Step 1: Exporting data from Zoho Analytics...');
+      results.zohoExport = await this.zohoClient.batchExport(
+        tablesToReplicate,
+        './exports',
+        EXPORT_CONFIG.batchSize
+      );
+
+      // Step 2: Import to Supabase
+      if (results.zohoExport.success.length > 0) {
+        console.log('\n📤 Step 2: Importing data to Supabase...');
+
+        const tableDataMap = {};
+
+        // Load CSV files into memory
+        for (const exportResult of results.zohoExport.success) {
+          try {
+            const fs = require('fs');
+            const csvData = fs.readFileSync(exportResult.filepath, 'utf8');
+            tableDataMap[exportResult.tableName] = csvData;
+            console.log(`📖 Loaded ${exportResult.tableName} (${(csvData.length / 1024).toFixed(1)} KB)`);
+          } catch (error) {
+            console.error(`❌ Failed to load ${exportResult.tableName}: ${error.message}`);
+          }
+        }
+
+        // Replicate to Supabase
+        results.supabaseImport = await this.supabaseClient.replicateTables(tableDataMap);
+      } else {
+        console.log('❌ No data exported from Zoho Analytics. Skipping Supabase import.');
+        results.supabaseImport = { success: [], failed: [], totalRecords: 0 };
+      }
+
+      // Calculate final results
+      const endTime = new Date();
+      results.totalDuration = endTime - startTime;
+      results.success = results.supabaseImport.success.length > 0;
+
       return results;
     } catch (error) {
       console.error('❌ Specific table replication failed:', error.message);
@@ -318,7 +366,7 @@ class BulkReplicator {
   }
 
   // Start scheduled daily replication
-  startScheduler() {
+  async startScheduler() {
     // Don't start if already running
     if (this.schedulerState.isRunning) {
       console.log('⚠️ Scheduler is already running');
@@ -369,8 +417,11 @@ class BulkReplicator {
     this.schedulerState.isRunning = true;
     this.schedulerState.nextRun = this.calculateNextRun();
 
+    // Get table count from database
+    const tableCount = await this.configManager.getConfigurationCount();
+
     console.log(`⏰ Daily replication scheduled for ${scheduleTime} ${timezone}`);
-    console.log(`📊 Will replicate ${BULK_EXPORT_TABLES.length} tables automatically`);
+    console.log(`📊 Will replicate ${tableCount} tables automatically`);
     console.log(`🕐 Next run: ${this.schedulerState.nextRun?.toISOString() || 'Unknown'}`);
 
     return true;
