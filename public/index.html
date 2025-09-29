@@ -1179,6 +1179,37 @@
             loadConfiguredTablesCount();
         });
 
+        // Language Switching Function
+        async function switchLanguage(language) {
+            try {
+                dashboard.log(`Switching language to ${language}...`);
+
+                const response = await fetch('/api/zoho-books/language', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ language })
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    dashboard.log(`✅ Language switched to ${language}`, 'success');
+
+                    // Update the status display
+                    const langDisplay = document.getElementById('zohoBooksLanguage');
+                    if (langDisplay) {
+                        langDisplay.textContent = language.toUpperCase();
+                    }
+                } else {
+                    dashboard.log(`Failed to switch language: ${data.error || data.message}`, 'error');
+                }
+            } catch (error) {
+                dashboard.log(`Error switching language: ${error.message}`, 'error');
+            }
+        }
+
         // Table Management Functions
         async function loadConfiguredTablesCount() {
             try {
