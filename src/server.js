@@ -6,6 +6,7 @@ const BulkReplicator = require('./bulk-replicator');
 const { BULK_EXPORT_TABLES } = require('../config/tables');
 const ZohoTablesFetcher = require('./fetch-zoho-tables');
 const DatabaseConfigManager = require('./database-config-manager');
+const eventLogger = require('./event-logger');
 const fs = require('fs').promises;
 const fsSync = require('fs');
 
@@ -1112,6 +1113,61 @@ app.get('/status', (req, res) => {
   };
 
   res.json(status);
+});
+
+// Server-Sent Events (SSE) endpoint for real-time logs
+app.get('/api/logs/stream', (req, res) => {
+  // Set headers for SSE
+  res.setHeader('Content-Type', 'text/event-stream');
+  res.setHeader('Cache-Control', 'no-cache');
+  res.setHeader('Connection', 'keep-alive');
+  res.setHeader('Access-Control-Allow-Origin', '*');
+
+  // Disable response buffering
+  res.flushHeaders();
+
+  // Register this client with the event logger
+  eventLogger.registerSSEClient(res);
+
+  // Handle client disconnect
+  req.on('close', () => {
+    eventLogger.unregisterSSEClient(res);
+    res.end();
+  });
+});
+
+// Get recent logs (REST endpoint)
+app.get('/api/logs/recent', (req, res) => {
+  const count = parseInt(req.query.count) || 100;
+  const logs = eventLogger.getRecentLogs(count);
+
+  res.json({
+    success: true,
+    logs,
+    count: logs.length,
+    stats: eventLogger.getStats(),
+    timestamp: new Date().toISOString()
+  });
+});
+
+// Clear logs
+app.post('/api/logs/clear', (req, res) => {
+  eventLogger.clearLogs();
+
+  res.json({
+    success: true,
+    message: 'Logs cleared successfully',
+    timestamp: new Date().toISOString()
+  });
+});
+
+// Get log statistics
+app.get('/api/logs/stats', (req, res) => {
+  res.json({
+    success: true,
+    stats: eventLogger.getStats(),
+    timestamp: new Date().toISOString()
+  });
 });
 
 // Error handling middleware

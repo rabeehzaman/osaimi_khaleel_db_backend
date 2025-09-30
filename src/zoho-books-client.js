@@ -1,4 +1,5 @@
 const axios = require('axios');
+const eventLogger = require('./event-logger');
 
 class ZohoBooksClient {
   constructor() {
@@ -111,10 +112,25 @@ class ZohoBooksClient {
   // Get current language
   async getCurrentLanguage() {
     try {
+      eventLogger.info('language:check:start', {
+        message: 'Checking current Zoho Books language'
+      });
+
       const org = await this.getOrganizationDetails();
-      return org?.language_code || null;
+      const language = org?.language_code || null;
+
+      eventLogger.info('language:check:complete', {
+        message: `Current language: ${language || 'unknown'}`,
+        language
+      });
+
+      return language;
     } catch (error) {
       console.error('❌ Failed to get current language:', error.message);
+      eventLogger.error('language:check:failed', {
+        message: `Failed to check language: ${error.message}`,
+        error: error.message
+      });
       return null;
     }
   }
@@ -123,6 +139,10 @@ class ZohoBooksClient {
   async switchLanguage(targetLanguage) {
     if (!this.enabled) {
       console.log('⚠️  Zoho Books language switching is disabled (missing configuration)');
+      eventLogger.warning('language:switch:disabled', {
+        message: 'Zoho Books language switching is disabled (missing configuration)',
+        targetLanguage
+      });
       return { success: false, message: 'Zoho Books client is disabled' };
     }
 
@@ -139,6 +159,12 @@ class ZohoBooksClient {
           this.originalLanguage = currentLang;
         }
       }
+
+      eventLogger.info('language:switch:start', {
+        message: `Switching Zoho Books language: ${this.originalLanguage || 'unknown'} → ${targetLanguage}`,
+        fromLanguage: this.originalLanguage,
+        toLanguage: targetLanguage
+      });
 
       // Get access token
       const accessToken = await this.getAccessToken();
@@ -170,6 +196,13 @@ class ZohoBooksClient {
           success: true
         };
 
+        eventLogger.success('language:switch:complete', {
+          message: `Successfully switched language to ${targetLanguage}`,
+          fromLanguage: this.originalLanguage,
+          toLanguage: targetLanguage,
+          responseMessage: response.data.message
+        });
+
         return {
           success: true,
           message: response.data.message,
@@ -178,6 +211,13 @@ class ZohoBooksClient {
         };
       } else {
         console.log(`⚠️  Unexpected response code: ${response.data.code}`);
+
+        eventLogger.warning('language:switch:unexpected', {
+          message: `Unexpected response code: ${response.data.code}`,
+          code: response.data.code,
+          responseMessage: response.data.message
+        });
+
         return {
           success: false,
           message: response.data.message || 'Unknown error',
@@ -196,6 +236,13 @@ class ZohoBooksClient {
         error: error.message
       };
 
+      eventLogger.error('language:switch:failed', {
+        message: `Failed to switch language to ${targetLanguage}: ${error.message}`,
+        targetLanguage,
+        error: error.message,
+        responseData: error.response?.data
+      });
+
       return {
         success: false,
         message: error.response?.data?.message || error.message,
@@ -207,12 +254,18 @@ class ZohoBooksClient {
   // Switch to English (for pre-import)
   async switchToEnglish() {
     console.log('🔤 Preparing Zoho Books for import (switching to English)...');
+    eventLogger.info('language:pre-import', {
+      message: 'Preparing Zoho Books for import - switching to English'
+    });
     return await this.switchLanguage('en');
   }
 
   // Switch to Arabic (for post-import restoration)
   async switchToArabic() {
     console.log('🔤 Restoring Zoho Books language (switching to Arabic)...');
+    eventLogger.info('language:post-import', {
+      message: 'Restoring Zoho Books language - switching to Arabic'
+    });
     return await this.switchLanguage('ar');
   }
 
@@ -220,14 +273,30 @@ class ZohoBooksClient {
   async restoreOriginalLanguage() {
     if (!this.originalLanguage) {
       console.log('ℹ️  No original language stored, skipping restoration');
+      eventLogger.info('language:restore:skipped', {
+        message: 'No original language to restore'
+      });
       return { success: true, message: 'No restoration needed' };
     }
 
     console.log(`🔄 Restoring original language: ${this.originalLanguage}`);
+    eventLogger.info('language:restore:start', {
+      message: `Restoring original language: ${this.originalLanguage}`,
+      targetLanguage: this.originalLanguage
+    });
+
     const result = await this.switchLanguage(this.originalLanguage);
 
     if (result.success) {
       this.originalLanguage = null; // Clear after successful restoration
+      eventLogger.success('language:restore:complete', {
+        message: 'Successfully restored original language'
+      });
+    } else {
+      eventLogger.error('language:restore:failed', {
+        message: 'Failed to restore original language',
+        error: result.message
+      });
     }
 
     return result;

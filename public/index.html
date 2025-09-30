@@ -502,6 +502,245 @@
             margin-bottom: 0;
         }
 
+        /* Real-Time Terminal Console Styles */
+        .terminal-container {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: #1e1e1e;
+            border-top: 3px solid #667eea;
+            box-shadow: 0 -5px 20px rgba(0,0,0,0.3);
+            z-index: 1000;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .terminal-container.collapsed {
+            transform: translateY(calc(100% - 45px));
+        }
+
+        .terminal-header {
+            background: #2d2d30;
+            padding: 10px 15px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid #3e3e42;
+            cursor: pointer;
+            user-select: none;
+        }
+
+        .terminal-header:hover {
+            background: #323236;
+        }
+
+        .terminal-title {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            color: #fff;
+            font-weight: 600;
+            font-size: 14px;
+        }
+
+        .terminal-status {
+            display: inline-block;
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background: #4caf50;
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        .terminal-controls {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+        }
+
+        .terminal-btn {
+            background: transparent;
+            border: 1px solid #555;
+            color: #ccc;
+            padding: 4px 10px;
+            border-radius: 4px;
+            font-size: 12px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .terminal-btn:hover {
+            background: #3e3e42;
+            color: #fff;
+            border-color: #667eea;
+        }
+
+        .terminal-btn.active {
+            background: #667eea;
+            color: #fff;
+            border-color: #667eea;
+        }
+
+        .terminal-collapse-btn {
+            background: transparent;
+            border: none;
+            color: #ccc;
+            font-size: 18px;
+            cursor: pointer;
+            padding: 0 5px;
+            transition: transform 0.3s;
+        }
+
+        .terminal-container.collapsed .terminal-collapse-btn {
+            transform: rotate(180deg);
+        }
+
+        .terminal-body {
+            height: 300px;
+            overflow-y: auto;
+            overflow-x: hidden;
+            padding: 15px;
+            font-family: 'Courier New', 'Consolas', monospace;
+            font-size: 13px;
+            line-height: 1.6;
+            background: #1e1e1e;
+        }
+
+        .terminal-log-entry {
+            margin-bottom: 8px;
+            padding: 6px 10px;
+            border-radius: 4px;
+            display: flex;
+            align-items: flex-start;
+            gap: 10px;
+            animation: slideIn 0.2s ease-out;
+            word-wrap: break-word;
+            white-space: pre-wrap;
+        }
+
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateX(-10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateX(0);
+            }
+        }
+
+        .terminal-log-entry .log-time {
+            color: #858585;
+            flex-shrink: 0;
+            font-weight: 600;
+        }
+
+        .terminal-log-entry .log-emoji {
+            flex-shrink: 0;
+            font-size: 16px;
+        }
+
+        .terminal-log-entry .log-message {
+            flex: 1;
+            color: #d4d4d4;
+        }
+
+        .terminal-log-entry.info {
+            background: rgba(79, 195, 247, 0.1);
+            border-left: 3px solid #4fc3f7;
+        }
+
+        .terminal-log-entry.info .log-message {
+            color: #4fc3f7;
+        }
+
+        .terminal-log-entry.success {
+            background: rgba(76, 175, 80, 0.1);
+            border-left: 3px solid #4caf50;
+        }
+
+        .terminal-log-entry.success .log-message {
+            color: #4caf50;
+        }
+
+        .terminal-log-entry.error {
+            background: rgba(244, 67, 54, 0.1);
+            border-left: 3px solid #f44336;
+        }
+
+        .terminal-log-entry.error .log-message {
+            color: #f44336;
+        }
+
+        .terminal-log-entry.warning {
+            background: rgba(255, 152, 0, 0.1);
+            border-left: 3px solid #ff9800;
+        }
+
+        .terminal-log-entry.warning .log-message {
+            color: #ff9800;
+        }
+
+        .terminal-log-entry.progress {
+            background: rgba(156, 39, 176, 0.1);
+            border-left: 3px solid #9c27b0;
+        }
+
+        .terminal-log-entry.progress .log-message {
+            color: #9c27b0;
+        }
+
+        .terminal-empty {
+            color: #666;
+            text-align: center;
+            padding: 50px 20px;
+            font-style: italic;
+        }
+
+        .terminal-footer {
+            background: #252526;
+            padding: 8px 15px;
+            border-top: 1px solid #3e3e42;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 12px;
+            color: #858585;
+        }
+
+        .terminal-stats {
+            display: flex;
+            gap: 20px;
+        }
+
+        .terminal-stat {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .terminal-stat-label {
+            color: #858585;
+        }
+
+        .terminal-stat-value {
+            color: #fff;
+            font-weight: 600;
+        }
+
+        .terminal-stat-value.success {
+            color: #4caf50;
+        }
+
+        .terminal-stat-value.error {
+            color: #f44336;
+        }
+
         /* Responsive Design */
         @media (max-width: 768px) {
             .status-bar {
@@ -653,6 +892,51 @@
             <!-- Simple Status Messages -->
             <div class="message-area" id="messageArea">
                 <div class="message-item info">Dashboard ready. Select tables and click Replicate to start.</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Real-Time Terminal Console -->
+    <div class="terminal-container" id="terminalContainer">
+        <div class="terminal-header" onclick="toggleTerminal()">
+            <div class="terminal-title">
+                <span class="terminal-status" id="terminalStatus"></span>
+                <span>🖥️ System Console</span>
+                <span id="terminalConnectionStatus" style="font-size: 11px; color: #858585;">Connecting...</span>
+            </div>
+            <div class="terminal-controls">
+                <button class="terminal-btn" onclick="event.stopPropagation(); clearTerminal()">Clear</button>
+                <button class="terminal-btn" id="autoscrollBtn" onclick="event.stopPropagation(); toggleAutoscroll()" class="active">Auto-scroll</button>
+                <button class="terminal-btn" onclick="event.stopPropagation(); downloadLogs()">Download</button>
+                <button class="terminal-collapse-btn" id="terminalCollapseBtn">▼</button>
+            </div>
+        </div>
+        <div class="terminal-body" id="terminalBody">
+            <div class="terminal-empty">
+                Waiting for operations... The console will display real-time logs from backend processes.
+            </div>
+        </div>
+        <div class="terminal-footer">
+            <div class="terminal-stats">
+                <div class="terminal-stat">
+                    <span class="terminal-stat-label">Total:</span>
+                    <span class="terminal-stat-value" id="terminalTotalCount">0</span>
+                </div>
+                <div class="terminal-stat">
+                    <span class="terminal-stat-label">Success:</span>
+                    <span class="terminal-stat-value success" id="terminalSuccessCount">0</span>
+                </div>
+                <div class="terminal-stat">
+                    <span class="terminal-stat-label">Errors:</span>
+                    <span class="terminal-stat-value error" id="terminalErrorCount">0</span>
+                </div>
+                <div class="terminal-stat">
+                    <span class="terminal-stat-label">Warnings:</span>
+                    <span class="terminal-stat-value" id="terminalWarningCount">0</span>
+                </div>
+            </div>
+            <div id="terminalCurrentOp" style="color: #858585; font-size: 11px;">
+                Idle
             </div>
         </div>
     </div>
@@ -1449,6 +1733,306 @@
                 dashboard.log(`Error removing table: ${error.message}`, 'error');
             }
         }
+
+        // ===== REAL-TIME TERMINAL CONSOLE =====
+
+        class TerminalConsole {
+            constructor() {
+                this.eventSource = null;
+                this.logs = [];
+                this.maxLogs = 500;
+                this.autoScroll = true;
+                this.isCollapsed = false;
+                this.stats = {
+                    total: 0,
+                    success: 0,
+                    error: 0,
+                    warning: 0
+                };
+            }
+
+            connect() {
+                const url = `${window.location.origin}/api/logs/stream`;
+                this.eventSource = new EventSource(url);
+
+                this.eventSource.onopen = () => {
+                    console.log('✅ Terminal connected to log stream');
+                    this.updateConnectionStatus('Connected', true);
+                };
+
+                this.eventSource.onmessage = (event) => {
+                    try {
+                        const logEntry = JSON.parse(event.data);
+                        this.addLog(logEntry);
+                    } catch (error) {
+                        console.error('Failed to parse log entry:', error);
+                    }
+                };
+
+                this.eventSource.onerror = (error) => {
+                    console.error('❌ Terminal connection error:', error);
+                    this.updateConnectionStatus('Disconnected', false);
+
+                    // Attempt reconnection after 5 seconds
+                    setTimeout(() => {
+                        if (this.eventSource.readyState === EventSource.CLOSED) {
+                            console.log('🔄 Reconnecting to log stream...');
+                            this.connect();
+                        }
+                    }, 5000);
+                };
+            }
+
+            disconnect() {
+                if (this.eventSource) {
+                    this.eventSource.close();
+                    this.eventSource = null;
+                    this.updateConnectionStatus('Disconnected', false);
+                }
+            }
+
+            updateConnectionStatus(status, connected) {
+                const statusEl = document.getElementById('terminalConnectionStatus');
+                if (statusEl) {
+                    statusEl.textContent = status;
+                    statusEl.style.color = connected ? '#4caf50' : '#f44336';
+                }
+            }
+
+            addLog(logEntry) {
+                // Skip heartbeat events
+                if (logEntry.event === 'heartbeat') {
+                    return;
+                }
+
+                this.logs.push(logEntry);
+
+                // Trim logs if exceeding max
+                if (this.logs.length > this.maxLogs) {
+                    this.logs.shift();
+                }
+
+                // Update statistics
+                this.updateStats(logEntry);
+
+                // Render the log entry
+                this.renderLog(logEntry);
+
+                // Update current operation display
+                this.updateCurrentOperation(logEntry);
+
+                // Auto-scroll if enabled
+                if (this.autoScroll) {
+                    this.scrollToBottom();
+                }
+            }
+
+            updateStats(logEntry) {
+                this.stats.total++;
+
+                switch (logEntry.level) {
+                    case 'success':
+                        this.stats.success++;
+                        break;
+                    case 'error':
+                        this.stats.error++;
+                        break;
+                    case 'warning':
+                        this.stats.warning++;
+                        break;
+                }
+
+                // Update UI
+                document.getElementById('terminalTotalCount').textContent = this.stats.total;
+                document.getElementById('terminalSuccessCount').textContent = this.stats.success;
+                document.getElementById('terminalErrorCount').textContent = this.stats.error;
+                document.getElementById('terminalWarningCount').textContent = this.stats.warning;
+            }
+
+            renderLog(logEntry) {
+                const terminalBody = document.getElementById('terminalBody');
+
+                // Remove empty message if present
+                const emptyMsg = terminalBody.querySelector('.terminal-empty');
+                if (emptyMsg) {
+                    emptyMsg.remove();
+                }
+
+                // Create log entry element
+                const logEl = document.createElement('div');
+                logEl.className = `terminal-log-entry ${logEntry.level || 'info'}`;
+
+                const time = new Date(logEntry.timestamp).toLocaleTimeString();
+                const emoji = this.getEmojiForLog(logEntry);
+                const message = logEntry.message || logEntry.event;
+
+                logEl.innerHTML = `
+                    <span class="log-time">${time}</span>
+                    <span class="log-emoji">${emoji}</span>
+                    <span class="log-message">${this.formatMessage(message, logEntry)}</span>
+                `;
+
+                terminalBody.appendChild(logEl);
+            }
+
+            getEmojiForLog(logEntry) {
+                if (logEntry.event) {
+                    if (logEntry.event.includes('start')) return '🚀';
+                    if (logEntry.event.includes('complete') || logEntry.event.includes('end')) return '✅';
+                    if (logEntry.event.includes('failed')) return '❌';
+                    if (logEntry.event.includes('export')) return '📊';
+                    if (logEntry.event.includes('import')) return '💾';
+                    if (logEntry.event.includes('language')) return '🌐';
+                    if (logEntry.event.includes('loaded')) return '📖';
+                    if (logEntry.event.includes('connection')) return '📡';
+                }
+
+                switch (logEntry.level) {
+                    case 'success': return '✅';
+                    case 'error': return '❌';
+                    case 'warning': return '⚠️';
+                    case 'progress': return '⏳';
+                    case 'info':
+                    default: return 'ℹ️';
+                }
+            }
+
+            formatMessage(message, logEntry) {
+                let formatted = message;
+
+                // Add additional context if available
+                if (logEntry.tableName) {
+                    formatted += ` <span style="color: #858585;">(${logEntry.tableName})</span>`;
+                }
+
+                if (logEntry.duration) {
+                    const seconds = (logEntry.duration / 1000).toFixed(2);
+                    formatted += ` <span style="color: #858585;">[${seconds}s]</span>`;
+                }
+
+                if (logEntry.totalRecords) {
+                    formatted += ` <span style="color: #858585;">(${logEntry.totalRecords.toLocaleString()} records)</span>`;
+                }
+
+                return formatted;
+            }
+
+            updateCurrentOperation(logEntry) {
+                const currentOpEl = document.getElementById('terminalCurrentOp');
+                if (!currentOpEl) return;
+
+                if (logEntry.event && logEntry.event.includes('start')) {
+                    currentOpEl.textContent = logEntry.message || 'Operation in progress...';
+                    currentOpEl.style.color = '#4fc3f7';
+                } else if (logEntry.event && (logEntry.event.includes('complete') || logEntry.event.includes('end'))) {
+                    currentOpEl.textContent = 'Idle';
+                    currentOpEl.style.color = '#858585';
+                } else if (logEntry.level === 'error') {
+                    currentOpEl.textContent = 'Error occurred';
+                    currentOpEl.style.color = '#f44336';
+                }
+            }
+
+            scrollToBottom() {
+                const terminalBody = document.getElementById('terminalBody');
+                if (terminalBody) {
+                    terminalBody.scrollTop = terminalBody.scrollHeight;
+                }
+            }
+
+            clear() {
+                this.logs = [];
+                this.stats = {
+                    total: 0,
+                    success: 0,
+                    error: 0,
+                    warning: 0
+                };
+
+                const terminalBody = document.getElementById('terminalBody');
+                if (terminalBody) {
+                    terminalBody.innerHTML = '<div class="terminal-empty">Console cleared. Waiting for operations...</div>';
+                }
+
+                // Update stats display
+                document.getElementById('terminalTotalCount').textContent = '0';
+                document.getElementById('terminalSuccessCount').textContent = '0';
+                document.getElementById('terminalErrorCount').textContent = '0';
+                document.getElementById('terminalWarningCount').textContent = '0';
+            }
+
+            downloadLogs() {
+                const logsText = this.logs.map(log => {
+                    const time = new Date(log.timestamp).toLocaleString();
+                    return `[${time}] [${log.level.toUpperCase()}] ${log.message || log.event}`;
+                }).join('\n');
+
+                const blob = new Blob([logsText], { type: 'text/plain' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `zoho-replication-logs-${new Date().toISOString()}.txt`;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+            }
+
+            toggleCollapse() {
+                this.isCollapsed = !this.isCollapsed;
+                const container = document.getElementById('terminalContainer');
+                if (container) {
+                    if (this.isCollapsed) {
+                        container.classList.add('collapsed');
+                    } else {
+                        container.classList.remove('collapsed');
+                    }
+                }
+            }
+
+            toggleAutoscroll() {
+                this.autoScroll = !this.autoScroll;
+                const btn = document.getElementById('autoscrollBtn');
+                if (btn) {
+                    if (this.autoScroll) {
+                        btn.classList.add('active');
+                    } else {
+                        btn.classList.remove('active');
+                    }
+                }
+            }
+        }
+
+        // Initialize terminal console
+        const terminal = new TerminalConsole();
+
+        // Global functions for button handlers
+        function toggleTerminal() {
+            terminal.toggleCollapse();
+        }
+
+        function clearTerminal() {
+            terminal.clear();
+        }
+
+        function toggleAutoscroll() {
+            terminal.toggleAutoscroll();
+        }
+
+        function downloadLogs() {
+            terminal.downloadLogs();
+        }
+
+        // Connect terminal on page load
+        window.addEventListener('load', () => {
+            terminal.connect();
+            console.log('🖥️ Terminal console initialized');
+        });
+
+        // Cleanup on page unload
+        window.addEventListener('beforeunload', () => {
+            terminal.disconnect();
+        });
     </script>
 </body>
 </html>

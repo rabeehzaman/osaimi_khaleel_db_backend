@@ -4,6 +4,7 @@ const ZohoBulkClient = require('./zoho-bulk-client');
 const SupabaseBulkClient = require('./supabase-bulk-client');
 const ZohoBooksClient = require('./zoho-books-client');
 const DatabaseConfigManager = require('./database-config-manager');
+const eventLogger = require('./event-logger');
 const { BULK_EXPORT_TABLES, EXPORT_CONFIG } = require('../config/tables');
 
 class BulkReplicator {
@@ -111,6 +112,8 @@ class BulkReplicator {
   }
 
   async replicateAllTables() {
+    const operationId = eventLogger.startOperation('replicateAllTables');
+
     try {
       await this.validateConfiguration();
 
@@ -120,6 +123,12 @@ class BulkReplicator {
 
       console.log('🚀 Starting full data replication from Zoho Analytics to Supabase');
       console.log(`📊 Tables to replicate: ${tablesToReplicate.length}`);
+
+      eventLogger.info('replication:start', {
+        message: `Starting full replication - ${tablesToReplicate.length} tables selected`,
+        tableCount: tablesToReplicate.length,
+        tables: tablesToReplicate.map(t => t.tableName)
+      });
 
       const startTime = new Date();
       const results = {
@@ -131,6 +140,11 @@ class BulkReplicator {
 
       // Step 1: Export all data from Zoho Analytics
       console.log('\n📥 Step 1: Exporting data from Zoho Analytics...');
+      eventLogger.info('export:start', {
+        message: 'Starting Zoho Analytics data export',
+        tableCount: tablesToReplicate.length
+      });
+
       results.zohoExport = await this.zohoClient.batchExport(
         tablesToReplicate,
         './exports',
@@ -139,31 +153,75 @@ class BulkReplicator {
 
       if (results.zohoExport.failed.length > 0) {
         console.log('\n⚠️  Some exports failed. Continuing with successful exports...');
+        eventLogger.warning('export:partial', {
+          message: `${results.zohoExport.failed.length} table(s) failed to export`,
+          failedTables: results.zohoExport.failed.map(f => f.tableName),
+          successCount: results.zohoExport.success.length
+        });
+      } else {
+        eventLogger.success('export:complete', {
+          message: `Successfully exported ${results.zohoExport.success.length} tables`,
+          successCount: results.zohoExport.success.length,
+          totalSize: results.zohoExport.totalSize
+        });
       }
 
       // Step 2: Load exported data and replicate to Supabase
       if (results.zohoExport.success.length > 0) {
         console.log('\n📤 Step 2: Importing data to Supabase...');
-        
+        eventLogger.info('import:start', {
+          message: 'Starting Supabase import',
+          tableCount: results.zohoExport.success.length
+        });
+
         const tableDataMap = {};
-        
+
         // Load CSV files into memory
         for (const exportResult of results.zohoExport.success) {
           try {
             const fs = require('fs');
             const csvData = fs.readFileSync(exportResult.filepath, 'utf8');
             tableDataMap[exportResult.tableName] = csvData;
-            console.log(`📖 Loaded ${exportResult.tableName} (${(csvData.length / 1024).toFixed(1)} KB)`);
+            const sizeKB = (csvData.length / 1024).toFixed(1);
+            console.log(`📖 Loaded ${exportResult.tableName} (${sizeKB} KB)`);
+            eventLogger.info('table:loaded', {
+              message: `Loaded ${exportResult.tableName}`,
+              tableName: exportResult.tableName,
+              sizeKB: parseFloat(sizeKB)
+            });
           } catch (error) {
             console.error(`❌ Failed to load ${exportResult.tableName}: ${error.message}`);
+            eventLogger.error('table:load:failed', {
+              message: `Failed to load ${exportResult.tableName}`,
+              tableName: exportResult.tableName,
+              error: error.message
+            });
           }
         }
 
         // Replicate to Supabase
         results.supabaseImport = await this.supabaseClient.replicateTables(tableDataMap);
+
+        if (results.supabaseImport.success.length > 0) {
+          eventLogger.success('import:complete', {
+            message: `Successfully imported ${results.supabaseImport.success.length} tables`,
+            successCount: results.supabaseImport.success.length,
+            totalRecords: results.supabaseImport.totalRecords
+          });
+        }
+
+        if (results.supabaseImport.failed.length > 0) {
+          eventLogger.warning('import:partial', {
+            message: `${results.supabaseImport.failed.length} table(s) failed to import`,
+            failedTables: results.supabaseImport.failed.map(f => f.tableName)
+          });
+        }
       } else {
         console.log('❌ No data exported from Zoho Analytics. Skipping Supabase import.');
         results.supabaseImport = { success: [], failed: [], totalRecords: 0 };
+        eventLogger.error('import:skipped', {
+          message: 'No data to import - all exports failed'
+        });
       }
 
       // Calculate final results
@@ -174,14 +232,29 @@ class BulkReplicator {
       // Print summary
       this.printReplicationSummary(results);
 
+      eventLogger.endOperation(results.success, {
+        tablesExported: results.zohoExport.success.length,
+        tablesImported: results.supabaseImport.success.length,
+        totalRecords: results.supabaseImport.totalRecords,
+        duration: results.totalDuration
+      });
+
       return results;
     } catch (error) {
       console.error('❌ Replication failed:', error.message);
+      eventLogger.error('replication:failed', {
+        message: `Replication failed: ${error.message}`,
+        error: error.message,
+        stack: error.stack
+      });
+      eventLogger.endOperation(false, { error: error.message });
       throw error;
     }
   }
 
   async replicateSpecificTables(tableNames) {
+    const operationId = eventLogger.startOperation('replicateSpecificTables');
+
     try {
       await this.validateConfiguration();
 
@@ -199,6 +272,12 @@ class BulkReplicator {
 
       console.log(`🎯 Replicating specific tables: ${tablesToReplicate.map(t => t.tableName).join(', ')}`);
 
+      eventLogger.info('replication:selective:start', {
+        message: `Starting selective replication - ${tablesToReplicate.length} tables`,
+        requestedTables: tableNames,
+        matchedTables: tablesToReplicate.map(t => t.tableName)
+      });
+
       // Export specific tables from Zoho
       const startTime = new Date();
       const results = {
@@ -210,15 +289,38 @@ class BulkReplicator {
 
       // Step 1: Export data from Zoho Analytics
       console.log('\n📥 Step 1: Exporting data from Zoho Analytics...');
+      eventLogger.info('export:start', {
+        message: `Exporting ${tablesToReplicate.length} selected tables`,
+        tables: tablesToReplicate.map(t => t.tableName)
+      });
+
       results.zohoExport = await this.zohoClient.batchExport(
         tablesToReplicate,
         './exports',
         EXPORT_CONFIG.batchSize
       );
 
+      if (results.zohoExport.success.length > 0) {
+        eventLogger.success('export:complete', {
+          message: `Exported ${results.zohoExport.success.length} tables`,
+          successCount: results.zohoExport.success.length
+        });
+      }
+
+      if (results.zohoExport.failed.length > 0) {
+        eventLogger.warning('export:partial', {
+          message: `${results.zohoExport.failed.length} table(s) failed to export`,
+          failedTables: results.zohoExport.failed.map(f => f.tableName)
+        });
+      }
+
       // Step 2: Import to Supabase
       if (results.zohoExport.success.length > 0) {
         console.log('\n📤 Step 2: Importing data to Supabase...');
+        eventLogger.info('import:start', {
+          message: 'Importing selected tables to Supabase',
+          tableCount: results.zohoExport.success.length
+        });
 
         const tableDataMap = {};
 
@@ -228,17 +330,46 @@ class BulkReplicator {
             const fs = require('fs');
             const csvData = fs.readFileSync(exportResult.filepath, 'utf8');
             tableDataMap[exportResult.tableName] = csvData;
-            console.log(`📖 Loaded ${exportResult.tableName} (${(csvData.length / 1024).toFixed(1)} KB)`);
+            const sizeKB = (csvData.length / 1024).toFixed(1);
+            console.log(`📖 Loaded ${exportResult.tableName} (${sizeKB} KB)`);
+            eventLogger.info('table:loaded', {
+              message: `Loaded ${exportResult.tableName}`,
+              tableName: exportResult.tableName,
+              sizeKB: parseFloat(sizeKB)
+            });
           } catch (error) {
             console.error(`❌ Failed to load ${exportResult.tableName}: ${error.message}`);
+            eventLogger.error('table:load:failed', {
+              message: `Failed to load ${exportResult.tableName}`,
+              tableName: exportResult.tableName,
+              error: error.message
+            });
           }
         }
 
         // Replicate to Supabase
         results.supabaseImport = await this.supabaseClient.replicateTables(tableDataMap);
+
+        if (results.supabaseImport.success.length > 0) {
+          eventLogger.success('import:complete', {
+            message: `Imported ${results.supabaseImport.success.length} tables`,
+            successCount: results.supabaseImport.success.length,
+            totalRecords: results.supabaseImport.totalRecords
+          });
+        }
+
+        if (results.supabaseImport.failed.length > 0) {
+          eventLogger.warning('import:partial', {
+            message: `${results.supabaseImport.failed.length} table(s) failed to import`,
+            failedTables: results.supabaseImport.failed.map(f => f.tableName)
+          });
+        }
       } else {
         console.log('❌ No data exported from Zoho Analytics. Skipping Supabase import.');
         results.supabaseImport = { success: [], failed: [], totalRecords: 0 };
+        eventLogger.error('import:skipped', {
+          message: 'No data to import - all exports failed'
+        });
       }
 
       // Calculate final results
@@ -246,9 +377,23 @@ class BulkReplicator {
       results.totalDuration = endTime - startTime;
       results.success = results.supabaseImport.success.length > 0;
 
+      eventLogger.endOperation(results.success, {
+        tablesExported: results.zohoExport.success.length,
+        tablesImported: results.supabaseImport.success.length,
+        totalRecords: results.supabaseImport.totalRecords,
+        duration: results.totalDuration
+      });
+
       return results;
     } catch (error) {
       console.error('❌ Specific table replication failed:', error.message);
+      eventLogger.error('replication:selective:failed', {
+        message: `Selective replication failed: ${error.message}`,
+        requestedTables: tableNames,
+        error: error.message,
+        stack: error.stack
+      });
+      eventLogger.endOperation(false, { error: error.message });
       throw error;
     }
   }
