@@ -46,11 +46,17 @@ async function initializeServices() {
   }
 }
 
-// Initialize services on startup
-initializeServices().catch(error => {
+// Initialize services on startup - wrapped in async IIFE
+(async () => {
+  await initializeServices();
+  // Start server after initialization completes
+  startServer();
+})().catch(error => {
   console.error('⚠️  Warning: Failed to initialize services:', error.message);
   // Continue running with fallback configuration
   runtimeTableConfig = [...BULK_EXPORT_TABLES];
+  // Start server even if initialization fails
+  startServer();
 });
 
 // Routes
@@ -1199,43 +1205,45 @@ app.use('*', (req, res) => {
   });
 });
 
-// Start server
-app.listen(PORT, '0.0.0.0', () => {
-  console.log(`🚀 Zoho Bulk Replication Server running on port ${PORT}`);
-  console.log(`📊 Configured tables: ${runtimeTableConfig.length}`);
-  console.log(`🔧 Environment: ${process.env.NODE_ENV || 'development'}`);
-  console.log(`🌐 Access the service at: http://localhost:${PORT}`);
-  
-  if (!replicator) {
-    console.log('⚠️  Warning: Replicator not initialized. Check your environment variables.');
-  } else {
-    console.log('✅ Replicator initialized successfully');
-    
-    // Start the scheduled replication service
-    try {
-      replicator.startScheduler();
-      console.log('📅 Automatic daily replication scheduler started');
-    } catch (error) {
-      console.error('❌ Failed to start scheduler:', error.message);
-    }
-  }
+// Start server function
+function startServer() {
+  app.listen(PORT, '0.0.0.0', () => {
+    console.log(`🚀 Zoho Bulk Replication Server running on port ${PORT}`);
+    console.log(`📊 Configured tables: ${runtimeTableConfig.length}`);
+    console.log(`🔧 Environment: ${process.env.NODE_ENV || 'development'}`);
+    console.log(`🌐 Access the service at: http://localhost:${PORT}`);
 
-  // Graceful shutdown
-  process.on('SIGINT', () => {
-    console.log('\n🛑 Received SIGINT, shutting down gracefully...');
-    if (replicator) {
-      replicator.stopScheduler();
-    }
-    process.exit(0);
-  });
+    if (!replicator) {
+      console.log('⚠️  Warning: Replicator not initialized. Check your environment variables.');
+    } else {
+      console.log('✅ Replicator initialized successfully');
 
-  process.on('SIGTERM', () => {
-    console.log('\n🛑 Received SIGTERM, shutting down gracefully...');
-    if (replicator) {
-      replicator.stopScheduler();
+      // Start the scheduled replication service
+      try {
+        replicator.startScheduler();
+        console.log('📅 Automatic daily replication scheduler started');
+      } catch (error) {
+        console.error('❌ Failed to start scheduler:', error.message);
+      }
     }
-    process.exit(0);
+
+    // Graceful shutdown
+    process.on('SIGINT', () => {
+      console.log('\n🛑 Received SIGINT, shutting down gracefully...');
+      if (replicator) {
+        replicator.stopScheduler();
+      }
+      process.exit(0);
+    });
+
+    process.on('SIGTERM', () => {
+      console.log('\n🛑 Received SIGTERM, shutting down gracefully...');
+      if (replicator) {
+        replicator.stopScheduler();
+      }
+      process.exit(0);
+    });
   });
-});
+}
 
 module.exports = app;
