@@ -55,9 +55,7 @@ class BulkReplicator {
     // Language switch scheduler state
     this.languageSwitchState = {
       preImportTask: null,  // Switch to English before import
-      postImportTask: null, // Switch to Arabic after import
-      lastPreSwitch: null,
-      lastPostSwitch: null
+      lastPreSwitch: null
     };
   }
 
@@ -614,66 +612,8 @@ class BulkReplicator {
       timezone: timezone
     });
 
-    // Schedule: Switch back to Arabic at 1:00 AM (1 hour after import starts)
-    const postImportTime = '0 1 * * *'; // 1:00 AM daily
-
-    this.languageSwitchState.postImportTask = cron.schedule(postImportTime, async () => {
-      console.log(`\n🌐 Post-import language restoration triggered at ${new Date().toISOString()}`);
-
-      try {
-        const result = await this.zohoBooksClient.switchToArabic();
-
-        this.languageSwitchState.lastPostSwitch = {
-          timestamp: new Date(),
-          success: result.success,
-          message: result.message
-        };
-
-        if (result.success) {
-          console.log('✅ Successfully restored Zoho Books to Arabic');
-        } else {
-          console.log('⚠️  Failed to restore language to Arabic');
-          // Retry every 10 minutes until successful
-          this.retryLanguageRestore();
-        }
-      } catch (error) {
-        console.error('❌ Language restoration error:', error.message);
-        this.languageSwitchState.lastPostSwitch = {
-          timestamp: new Date(),
-          success: false,
-          error: error.message
-        };
-        // Retry restoration
-        this.retryLanguageRestore();
-      }
-    }, {
-      scheduled: true,
-      timezone: timezone
-    });
-
     console.log(`🌐 Language switching scheduled:`);
-    console.log(`   11:50 PM - Switch to English (pre-import)`);
-    console.log(`   1:00 AM  - Switch to Arabic (post-import)`);
-  }
-
-  // Retry language restoration if it fails
-  async retryLanguageRestore() {
-    console.log('🔄 Scheduling language restoration retry in 10 minutes...');
-
-    setTimeout(async () => {
-      try {
-        const result = await this.zohoBooksClient.switchToArabic();
-        if (result.success) {
-          console.log('✅ Language restoration retry successful');
-        } else {
-          console.log('⚠️  Language restoration retry failed, will try again in 10 minutes');
-          this.retryLanguageRestore();
-        }
-      } catch (error) {
-        console.error('❌ Language restoration retry error:', error.message);
-        this.retryLanguageRestore();
-      }
-    }, 10 * 60 * 1000); // 10 minutes
+    console.log(`   11:50 PM - Switch to English (before import)`);
   }
 
   // Stop language switch schedulers
@@ -683,12 +623,7 @@ class BulkReplicator {
       this.languageSwitchState.preImportTask = null;
     }
 
-    if (this.languageSwitchState.postImportTask) {
-      this.languageSwitchState.postImportTask.stop();
-      this.languageSwitchState.postImportTask = null;
-    }
-
-    console.log('🌐 Language switching schedulers stopped');
+    console.log('🌐 Language switching scheduler stopped');
   }
 
   // Stop scheduler (for graceful shutdown)
@@ -723,11 +658,9 @@ class BulkReplicator {
         enabled: this.zohoBooksClient.isEnabled(),
         schedule: {
           preImport: '11:50 PM - Switch to English',
-          import: '12:00 AM - Run import',
-          postImport: '1:00 AM - Switch to Arabic'
+          import: '12:00 AM - Run import'
         },
         lastPreSwitch: this.languageSwitchState.lastPreSwitch,
-        lastPostSwitch: this.languageSwitchState.lastPostSwitch,
         currentStatus: this.zohoBooksClient.getStatus()
       }
     };
