@@ -579,8 +579,8 @@ class BulkReplicator {
 
     const timezone = this.schedulerState.timezone;
 
-    // Schedule: Switch to English at 11:50 PM (10 minutes before import)
-    const preImportTime = '50 23 * * *'; // 11:50 PM daily
+    // Schedule: Switch to English at 10:58 PM (2 minutes before import)
+    const preImportTime = '58 22 * * *'; // 10:58 PM daily
 
     this.languageSwitchState.preImportTask = cron.schedule(preImportTime, async () => {
       console.log(`\n🌐 Pre-import language switch triggered at ${new Date().toISOString()}`);
@@ -613,7 +613,7 @@ class BulkReplicator {
     });
 
     console.log(`🌐 Language switching scheduled:`);
-    console.log(`   11:50 PM - Switch to English (before import)`);
+    console.log(`   10:58 PM - Switch to English (before import)`);
   }
 
   // Stop language switch schedulers
@@ -657,8 +657,8 @@ class BulkReplicator {
       languageSwitching: {
         enabled: this.zohoBooksClient.isEnabled(),
         schedule: {
-          preImport: '11:50 PM - Switch to English',
-          import: '12:00 AM - Run import'
+          preImport: '10:58 PM - Switch to English',
+          import: `${this.schedulerState.scheduleTime} - Run import`
         },
         lastPreSwitch: this.languageSwitchState.lastPreSwitch,
         currentStatus: this.zohoBooksClient.getStatus()
